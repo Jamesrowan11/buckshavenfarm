@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem C:\\\\Users\\\\Administrator\\\\BucksHavenFarm -Recurse -File | Select-Object FullName | Measure-Object | Select-Object Count; Get-ChildItem C:\\\\Users\\\\Administrator\\\\BucksHavenFarm -Recurse -File | ForEach-Object { $_.FullName.Replace\\('C:\\\\Users\\\\Administrator\\\\BucksHavenFarm\\\\',''\\) } | Sort-Object)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(Get-Item *)",
+      "PowerShell(npm install *)",
+      "PowerShell(npm run *)",
+      "Bash(git init *)",
+      "Bash(git check-ignore *)",
+      "Bash(xargs -I{} grep -l -iE \"anon.key|eyJ[A-Za-z0-9_-]{20,}\" {})",
+      "Bash(xargs grep -l \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\")",
+      "Bash(git add *)",
+      "Bash(git -c user.email=james@northvaleunified.com -c 'user.name=James Rowan' commit -m ' *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(GIT_TERMINAL_PROMPT=0 git push *)",
+      "Bash(git pull *)",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(GIT_EDITOR=true git rebase --continue)",
+      "Bash(git *)"
+    ]
+  }
+}
