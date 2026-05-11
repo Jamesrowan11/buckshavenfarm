@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 const items = [
   { href: "/employee/schedule", label: "My schedule", icon: "▤" },
   { href: "/employee/availability", label: "Submit availability", icon: "⏱" },

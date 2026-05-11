@@ -19,7 +19,8 @@
       "Bash(git stash *)",
       "Bash(git checkout *)",
       "Bash(GIT_EDITOR=true git rebase --continue)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "PowerShell(Remove-Item *)"
     ]
   }
 }
