@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient, getSessionAndProfile } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 export default async function EmployeeHome() {
   const supabase = createClient();

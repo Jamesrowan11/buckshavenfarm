@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 function getWeek(offset = 0) {
   const now = new Date();

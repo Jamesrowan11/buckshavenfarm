@@ -3,6 +3,7 @@ import { getSessionAndProfile } from "@/lib/supabase/server";
 import EmployeeShell from "@/components/EmployeeBottomNav";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 export default async function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const { user, profile } = await getSessionAndProfile();

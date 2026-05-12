@@ -4,6 +4,7 @@ import EmptyState from "@/components/EmptyState";
 import PriorityBadge from "@/components/PriorityBadge";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 async function createTask(formData: FormData) {
   "use server";

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 

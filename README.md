@@ -22,7 +22,7 @@ npm --version
    - `theresarowan777@gmail.com`
    - `landenrowan@gmail.com`
    The trigger inserts a `profiles` row for each. The `update` blocks at the bottom of `schema.sql` then promote James + Cynthia to `admin` and fix display names. Re-run those two `update` statements after creating the users (the trigger uses lowercase emails, the seed expects lowercase — already matched).
-4. **Authentication → URL configuration** → add your Netlify domain (and `http://localhost:3000` for dev) to the **Site URL** + **Redirect URLs** lists.
+4. **Authentication → URL configuration** → add your Cloudflare Pages domain (and `http://localhost:3000` for dev) to the **Site URL** + **Redirect URLs** lists.
 
 ## Step 3 — local dev
 
@@ -34,44 +34,54 @@ npm run dev
 
 Open <http://localhost:3000>, sign in as any of the four users.
 
-## Step 4 — deploy to Netlify
+## Step 4 — deploy to Cloudflare Pages
 
-Two options — pick one.
+This project ships with `@cloudflare/next-on-pages@1.13.15` (the last version
+that supports Next.js 14.2.x). Every server-rendered route is opted into the
+Edge runtime via `export const runtime = "edge"`.
 
-### Option A: GitHub + Netlify (recommended)
+### Cloudflare Pages dashboard settings
 
-```powershell
-cd C:\Users\Administrator\BucksHavenFarm
-git init
-git add .
-git commit -m "Initial commit"
-# create an empty repo on GitHub, then:
-git remote add origin https://github.com/<you>/bucks-haven-farm.git
-git branch -M main
-git push -u origin main
+In the Pages project → **Settings → Builds & deployments**:
+
+| Setting                | Value                                       |
+| ---------------------- | ------------------------------------------- |
+| Build command          | `npx @cloudflare/next-on-pages@1.13.15`     |
+| Build output directory | `.vercel/output/static`                     |
+| Root directory         | (leave blank)                               |
+| Node version           | env var `NODE_VERSION` = `20.18.1`          |
+
+In **Settings → Functions → Compatibility flags**:
+- Add `nodejs_compat` (both Production and Preview).
+
+In **Settings → Environment variables**:
+- `NEXT_PUBLIC_SUPABASE_URL` = `https://xtvwxgqrzswsuzouztkt.supabase.co`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` = (value from `.env.local`)
+
+Bind both vars to **Production** and **Preview**, then trigger a redeploy.
+
+### Local Cloudflare-style build (Linux / macOS / WSL only)
+
+The `next-on-pages` CLI shells out via bash and isn't reliable on raw Windows.
+On Linux/macOS/WSL:
+
+```bash
+npm run pages:build         # produces .vercel/output/static
+npm run pages:preview       # serve locally with wrangler
+npm run pages:deploy        # direct wrangler deploy (requires wrangler login)
 ```
 
-Then in Netlify:
-1. **Add new site → Import an existing project → GitHub** and pick the repo.
-2. Build settings auto-detect from `netlify.toml` (build: `npm run build`, publish: `.next`, plugin: `@netlify/plugin-nextjs`).
-3. **Site settings → Environment variables** → add:
-   - `NEXT_PUBLIC_SUPABASE_URL` = `https://xtvwxgqrzswsuzouztkt.supabase.co`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = (the anon key from `.env.local`)
-4. Trigger a deploy.
+### Post-deploy
 
-### Option B: Netlify CLI direct deploy
+Add the Cloudflare Pages URL (e.g. `https://buckshavenfarm.pages.dev`) to the
+Supabase **Authentication → URL configuration** Site URL + Redirect URL lists.
 
-```powershell
-npm install -g netlify-cli
-cd C:\Users\Administrator\BucksHavenFarm
-netlify login
-netlify init            # create-and-link a new site
-netlify env:set NEXT_PUBLIC_SUPABASE_URL "https://xtvwxgqrzswsuzouztkt.supabase.co"
-netlify env:set NEXT_PUBLIC_SUPABASE_ANON_KEY "<paste the anon key>"
-netlify deploy --build --prod
-```
+### Future: switch to OpenNext (optional)
 
-After deploy, add the Netlify URL to Supabase **URL configuration** (Step 2.4).
+`@cloudflare/next-on-pages` was deprecated in favor of
+[OpenNext for Cloudflare](https://opennext.js.org/cloudflare). The OpenNext
+adapter supports the Node.js runtime, so a future migration could remove the
+`export const runtime = "edge"` lines and stop relying on `next-on-pages`.
 
 ## Project layout
 
