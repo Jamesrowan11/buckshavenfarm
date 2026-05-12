@@ -113,6 +113,19 @@ create table if not exists public.horses (
   created_at timestamptz not null default now()
 );
 
+-- Per-barn assignment (added later; nullable so existing rows are fine).
+alter table public.horses
+  add column if not exists barn text;
+
+do $$
+begin
+  alter table public.horses
+    add constraint horses_barn_check
+    check (barn is null or barn in ('log-barn','arena-barn'));
+exception
+  when duplicate_object then null;
+end$$;
+
 -- ---------- feeding_charts ----------
 create table if not exists public.feeding_charts (
   id uuid primary key default gen_random_uuid(),
@@ -124,6 +137,20 @@ create table if not exists public.feeding_charts (
   responsible_employee uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );
+
+-- Per-barn assignment for the chart (denormalized from horses.barn so the
+-- public /barn-display/<barn> page can filter without a join).
+alter table public.feeding_charts
+  add column if not exists barn text;
+
+do $$
+begin
+  alter table public.feeding_charts
+    add constraint feeding_charts_barn_check
+    check (barn is null or barn in ('log-barn','arena-barn'));
+exception
+  when duplicate_object then null;
+end$$;
 
 -- ---------- feeding_logs ----------
 create table if not exists public.feeding_logs (

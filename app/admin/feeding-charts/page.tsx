@@ -27,6 +27,9 @@ async function upsertChart(horseId: string, formData: FormData) {
   "use server";
   const supabase = createClient();
   const existingId = (formData.get("id") as string) || null;
+  const rawBarn = (formData.get("barn") as string) || "";
+  const barn = rawBarn === "log-barn" || rawBarn === "arena-barn" ? rawBarn : null;
+
   const payload = {
     horse_id: horseId,
     am_feed: (formData.get("am_feed") as string) || null,
@@ -34,12 +37,17 @@ async function upsertChart(horseId: string, formData: FormData) {
     supplements: (formData.get("supplements") as string) || null,
     special_notes: (formData.get("special_notes") as string) || null,
     responsible_employee: (formData.get("responsible_employee") as string) || null,
+    barn,
   };
+
   if (existingId) {
     await supabase.from("feeding_charts").update(payload).eq("id", existingId);
   } else {
     await supabase.from("feeding_charts").insert(payload);
   }
+  // Keep horses.barn in sync so the public /barn-display/<barn> page can
+  // filter on horse.barn directly without a chart join.
+  await supabase.from("horses").update({ barn }).eq("id", horseId);
   revalidatePath("/admin/feeding-charts");
 }
 
@@ -77,7 +85,15 @@ export default async function AdminFeedingChartsPage() {
               <div key={h.id} className="card">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <div className="font-semibold text-lg">{h.name}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-lg">{h.name}</span>
+                      {h.barn === "log-barn" && (
+                        <span className="badge bg-amber-100 text-amber-800">Log Barn</span>
+                      )}
+                      {h.barn === "arena-barn" && (
+                        <span className="badge bg-sky-100 text-sky-800">Arena Barn</span>
+                      )}
+                    </div>
                     {h.notes && <div className="text-sm text-stone-600">{h.notes}</div>}
                   </div>
                   <form action={deleteHorse.bind(null, h.id)}>
@@ -108,6 +124,18 @@ export default async function AdminFeedingChartsPage() {
                             {e.name}
                           </option>
                         ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label">Barn</label>
+                      <select
+                        name="barn"
+                        defaultValue={chart?.barn ?? h.barn ?? ""}
+                        className="input"
+                      >
+                        <option value="">— unassigned —</option>
+                        <option value="log-barn">Log Barn</option>
+                        <option value="arena-barn">Arena Barn</option>
                       </select>
                     </div>
                     <div className="sm:col-span-2">
