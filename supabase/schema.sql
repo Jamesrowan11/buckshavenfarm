@@ -181,10 +181,11 @@ alter table public.announcements enable row level security;
 alter table public.clock_logs enable row level security;
 alter table public.admin_notes enable row level security;
 
--- profiles: everyone reads; admins write; self may update own name
+-- profiles: anyone reads (incl. anon, so the public /barn-display can join on
+-- responsible_employee → name); admins write; self may update own name.
 drop policy if exists "profiles_select_all" on public.profiles;
 create policy "profiles_select_all" on public.profiles
-  for select using (auth.role() = 'authenticated');
+  for select using (true);
 
 drop policy if exists "profiles_admin_write" on public.profiles;
 create policy "profiles_admin_write" on public.profiles
@@ -249,30 +250,31 @@ create policy "time_off_admin_all" on public.time_off_requests
   for all using (public.is_admin(auth.uid()))
   with check (public.is_admin(auth.uid()));
 
--- horses: everyone reads; admins write
+-- horses: anyone reads (public /barn-display needs anon access); admins write.
 drop policy if exists "horses_select_all" on public.horses;
 create policy "horses_select_all" on public.horses
-  for select using (auth.role() = 'authenticated');
+  for select using (true);
 
 drop policy if exists "horses_admin_all" on public.horses;
 create policy "horses_admin_all" on public.horses
   for all using (public.is_admin(auth.uid()))
   with check (public.is_admin(auth.uid()));
 
--- feeding_charts: everyone reads; admins write
+-- feeding_charts: anyone reads (public /barn-display); admins write.
 drop policy if exists "fc_select_all" on public.feeding_charts;
 create policy "fc_select_all" on public.feeding_charts
-  for select using (auth.role() = 'authenticated');
+  for select using (true);
 
 drop policy if exists "fc_admin_all" on public.feeding_charts;
 create policy "fc_admin_all" on public.feeding_charts
   for all using (public.is_admin(auth.uid()))
   with check (public.is_admin(auth.uid()));
 
--- feeding_logs: everyone reads; any authenticated employee can upsert today's mark; admins all
+-- feeding_logs: anyone reads (public /barn-display needs today's done/undone
+-- state); authenticated employees can upsert; admins all.
 drop policy if exists "fl_select_all" on public.feeding_logs;
 create policy "fl_select_all" on public.feeding_logs
-  for select using (auth.role() = 'authenticated');
+  for select using (true);
 
 drop policy if exists "fl_employee_write" on public.feeding_logs;
 create policy "fl_employee_write" on public.feeding_logs
@@ -288,10 +290,10 @@ create policy "fl_admin_all" on public.feeding_logs
   for all using (public.is_admin(auth.uid()))
   with check (public.is_admin(auth.uid()));
 
--- announcements: everyone reads; admins write
+-- announcements: anyone reads (public /barn-display); admins write.
 drop policy if exists "ann_select_all" on public.announcements;
 create policy "ann_select_all" on public.announcements
-  for select using (auth.role() = 'authenticated');
+  for select using (true);
 
 drop policy if exists "ann_admin_all" on public.announcements;
 create policy "ann_admin_all" on public.announcements
@@ -317,6 +319,29 @@ drop policy if exists "an_admin_all" on public.admin_notes;
 create policy "an_admin_all" on public.admin_notes
   for all using (public.is_admin(auth.uid()))
   with check (public.is_admin(auth.uid()));
+
+-- ============================================================
+-- Realtime publication
+-- The public /barn-display page subscribes to postgres_changes on these
+-- tables; they need to be members of `supabase_realtime` for change events
+-- to be broadcast. Idempotent: ALTER PUBLICATION ADD TABLE is a no-op if
+-- the table is already a member (we wrap each in DO/EXCEPTION to be safe
+-- since some Supabase projects start with all tables already published).
+-- ============================================================
+
+do $$
+declare
+  t text;
+begin
+  for t in select unnest(array['horses','feeding_charts','feeding_logs','announcements']) loop
+    begin
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    exception
+      when duplicate_object then null;
+      when undefined_object then null;  -- publication doesn't exist (self-hosted)
+    end;
+  end loop;
+end$$;
 
 -- ============================================================
 -- Seed: promote known admins

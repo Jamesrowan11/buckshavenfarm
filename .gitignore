@@ -8,4 +8,5 @@ out
 *.log
 .vercel
 .wrangler
+.claude/
 next-env.d.ts
