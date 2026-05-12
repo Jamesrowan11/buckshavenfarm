@@ -3,7 +3,6 @@ import { getSessionAndProfile } from "@/lib/supabase/server";
 import AdminSidebar from "@/components/AdminSidebar";
 
 export const dynamic = "force-dynamic";
-export const runtime = "edge";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, profile } = await getSessionAndProfile();

@@ -2,7 +2,6 @@ import { revalidatePath } from "next/cache";
 import { createClient, getSessionAndProfile } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
-export const runtime = "edge";
 
 async function clockAction(action: "in" | "out") {
   "use server";

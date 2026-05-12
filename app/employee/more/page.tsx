@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
-export const runtime = "edge";
 
 const items = [
   { href: "/employee/schedule", label: "My schedule", icon: "▤" },

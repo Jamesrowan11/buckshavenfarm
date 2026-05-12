@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
-export const runtime = "edge";
 
 async function setRole(id: string, role: "admin" | "employee") {
   "use server";

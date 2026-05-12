@@ -4,7 +4,6 @@ import EmptyState from "@/components/EmptyState";
 import PriorityBadge from "@/components/PriorityBadge";
 
 export const dynamic = "force-dynamic";
-export const runtime = "edge";
 
 async function toggleDone(id: string, done: boolean) {
   "use server";

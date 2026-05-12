@@ -27,7 +27,10 @@
       "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\('Path','Machine'\\) + ';' + [System.Environment]::GetEnvironmentVariable\\('Path','User'\\); '1.13.16','1.13.15','1.13.10','1.13.5','1.13.0','1.12.0','1.11.0','1.10.0','1.5.0','1.0.0' | ForEach-Object { $v = $_; $info = npm view \"@cloudflare/next-on-pages@$v\" peerDependencies --json 2>$null; Write-Output \"v$v -> $info\" })",
       "PowerShell(Split-Path *)",
       "Bash(export PATH=\"/c/Program Files/nodejs:$PATH\")",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "PowerShell(npm uninstall *)",
+      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\('Path','Machine'\\) + ';' + [System.Environment]::GetEnvironmentVariable\\('Path','User'\\); '1.0.0','0.6.6','0.5.30','0.4.0','0.3.0' | ForEach-Object { $v = $_; $info = npm view \"@opennextjs/cloudflare@$v\" peerDependencies --json 2>$null; Write-Output \"v$v -> $info\" })",
+      "PowerShell(npm *)"
     ]
   }
 }

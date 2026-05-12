@@ -9,18 +9,18 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholde
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key";
 
 export function createClient() {
-  const cookieStore = cookies();
-
   return createServerClient(
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     {
       cookies: {
-        getAll() {
+        async getAll() {
+          const cookieStore = await cookies();
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet: CookieToSet[]) {
+        async setAll(cookiesToSet: CookieToSet[]) {
           try {
+            const cookieStore = await cookies();
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             );
