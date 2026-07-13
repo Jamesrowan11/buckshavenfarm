@@ -30,6 +30,7 @@
         if (r.ok && (r.headers.get("content-type") || "").startsWith("video")) {
           const v = document.createElement("video");
           v.src = HERO_VIDEO;
+          v.poster = HERO_IMAGE; // instant first frame while the video buffers
           v.autoplay = v.muted = v.loop = v.playsInline = true;
           v.setAttribute("muted", "");
           heroMedia.style.animation = "none";
