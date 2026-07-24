@@ -30,7 +30,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="shell">
       <aside className="sidebar">
         <Link href="/admin" className="sidebar__brand">
-          <img src="/logo-mark.svg" alt="" />
+          <img src="/portal/logo-mark.svg" alt="" />
           <span>Bucks Haven <em>Farm</em></span>
         </Link>
         {NAV.map((group) => (
@@ -46,7 +46,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="sidebar__foot">
           {session.name}
           <br />
-          <a href="/logout" style={{ color: "#c9a35c" }}>Sign out</a>
+          <a href="/portal/logout" style={{ color: "#c9a35c" }}>Sign out</a>
         </div>
       </aside>
       <main className="main">{children}</main>

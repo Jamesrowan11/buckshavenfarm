@@ -62,7 +62,7 @@ export default async function BoarderHome() {
               {horse.documents.length === 0 && <p className="muted">Nothing on file yet.</p>}
               {horse.documents.map((d) => (
                 <p key={d.id} style={{ padding: ".25rem 0", fontSize: ".9rem" }}>
-                  <a href={`/api/documents/${d.id}`} style={{ fontWeight: 600, color: "var(--green-900)", textDecoration: "underline" }}>
+                  <a href={`/portal/api/documents/${d.id}`} style={{ fontWeight: 600, color: "var(--green-900)", textDecoration: "underline" }}>
                     {d.title}
                   </a>
                   <span className="muted"> · {fmtDate(d.createdAt)}</span>

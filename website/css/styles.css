@@ -69,6 +69,8 @@ h3 { font-size: 1.45rem; color: var(--green-900); margin-bottom: .4em; }
 .btn--outline:hover { background: var(--gold-dark); color: var(--cream); }
 .btn--full { width: 100%; }
 .btn--nav { padding: .6rem 1.4rem; margin-left: .8rem; }
+.btn--portal { margin-left: 0; border-color: rgba(201,163,92,.55); color: var(--gold-light); }
+.btn--portal:hover { background: rgba(201,163,92,.15); }
 
 /* ---------- navigation ---------- */
 .nav {

@@ -14,7 +14,7 @@ export default async function BoarderLayout({ children }: { children: React.Reac
     <div className="shell">
       <aside className="sidebar">
         <Link href="/boarder" className="sidebar__brand">
-          <img src="/logo-mark.svg" alt="" />
+          <img src="/portal/logo-mark.svg" alt="" />
           <span>Bucks Haven <em>Farm</em></span>
         </Link>
         {NAV.map((item) => (
@@ -23,7 +23,7 @@ export default async function BoarderLayout({ children }: { children: React.Reac
         <div className="sidebar__foot">
           {session.name}
           <br />
-          <a href="/logout" style={{ color: "#c9a35c" }}>Sign out</a>
+          <a href="/portal/logout" style={{ color: "#c9a35c" }}>Sign out</a>
         </div>
       </aside>
       <main className="main">{children}</main>

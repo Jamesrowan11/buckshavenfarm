@@ -27,7 +27,7 @@ export default async function LoginPage({
   return (
     <div className="login-wrap">
       <form className="login-card" action={login}>
-        <img src="/logo-mark.svg" alt="" />
+        <img src="/portal/logo-mark.svg" alt="" />
         <h1>Bucks Haven Farm</h1>
         <label className="fld">
           Email

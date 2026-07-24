@@ -137,7 +137,7 @@ export default async function HorseDetail({ params }: { params: Promise<{ id: st
             {horse.documents.map((d) => (
               <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--line)", padding: ".45rem 0", gap: ".6rem" }}>
                 <span>
-                  <a href={`/api/documents/${d.id}`} style={{ fontWeight: 600, color: "var(--green-900)" }}>{d.title}</a>
+                  <a href={`/portal/api/documents/${d.id}`} style={{ fontWeight: 600, color: "var(--green-900)" }}>{d.title}</a>
                   <span className="muted"> · {(d.size / 1024).toFixed(0)} KB · {fmtDate(d.createdAt)}</span>
                 </span>
                 <form action={deleteDocument.bind(null, horse.id, d.id)}>

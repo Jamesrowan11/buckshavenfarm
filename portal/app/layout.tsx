@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Bucks Haven Farm Portal",
   description: "Farm operations portal for Bucks Haven Farm",
-  icons: { icon: "/logo-mark.svg" },
+  icons: { icon: "/portal/logo-mark.svg" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

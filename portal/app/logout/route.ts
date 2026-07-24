@@ -3,5 +3,5 @@ import { destroySession } from "@/lib/auth";
 
 export async function GET(request: Request) {
   await destroySession();
-  return NextResponse.redirect(new URL("/login", request.url));
+  return NextResponse.redirect(new URL("/portal/login", request.url));
 }

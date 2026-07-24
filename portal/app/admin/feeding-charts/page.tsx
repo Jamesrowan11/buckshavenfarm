@@ -22,8 +22,8 @@ export default async function FeedingChartsPage() {
           <h1>Feeding charts</h1>
           <p className="sub">
             Edit each horse's chart from its page. Barn TVs: {" "}
-            <a href="/barn-display/log-barn" style={{ textDecoration: "underline" }}>Log Barn</a>{" · "}
-            <a href="/barn-display/arena-barn" style={{ textDecoration: "underline" }}>Arena Barn</a>
+            <a href="/portal/barn-display/log-barn" style={{ textDecoration: "underline" }}>Log Barn</a>{" · "}
+            <a href="/portal/barn-display/arena-barn" style={{ textDecoration: "underline" }}>Arena Barn</a>
           </p>
         </div>
       </div>
