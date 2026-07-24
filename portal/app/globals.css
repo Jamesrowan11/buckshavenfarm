@@ -144,11 +144,29 @@ label.fld { display: block; font-size: .74rem; letter-spacing: .08em; text-trans
 .login-card img { width: 72px; margin: 0 auto 1rem; display: block; }
 .login-card h1 { text-align: center; font-family: var(--serif); font-size: 1.3rem; letter-spacing: .06em; text-transform: uppercase; color: var(--green-900); margin-bottom: 1.4rem; }
 
-/* ---------- barn display (TV) ---------- */
-.tv { background: var(--green-950); color: var(--cream); min-height: 100vh; padding: 2rem 2.5rem; font-size: 1.05rem; }
-.tv h1 { font-family: var(--serif); color: var(--gold); font-size: 2rem; margin-bottom: 1.2rem; }
+/* ---------- barn display (TV) ----------
+   Auto-adjusts to the screen it's shown on:
+   - base font tracks screen size (vmin), so 720p aisle TVs and 4K screens
+     both read at the right size;
+   - TvFit then scales the whole board to exactly fill the height with no
+     scrolling, however many horses are on it, landscape or portrait. */
+.tv {
+  background: var(--green-950); color: var(--cream); min-height: 100vh;
+  padding: 1.6em 1.9em;
+  font-size: clamp(13px, 2.1vmin, 40px);
+  overflow: hidden; cursor: none;
+}
+.tv h1 { font-family: var(--serif); color: var(--gold); font-size: 1.9em; margin-bottom: .6em; }
 .tv table { width: 100%; border-collapse: collapse; }
-.tv th { text-align: left; font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: #93a094; padding: .5rem .8rem; border-bottom: 1px solid #2a4434; }
-.tv td { padding: .65rem .8rem; border-bottom: 1px solid #1d3527; }
-.tv .done { color: var(--ok); font-weight: 700; }
+.tv th { text-align: left; font-size: .72em; letter-spacing: .12em; text-transform: uppercase; color: #93a094; padding: .5em .75em; border-bottom: 1px solid #2a4434; }
+.tv td { padding: .6em .75em; border-bottom: 1px solid #1d3527; line-height: 1.4; }
+.tv .done { color: #6fce8f; font-weight: 700; }
 .tv .pending-dot { color: #93a094; }
+/* long lists split into two tables side by side on landscape screens */
+.tv-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2.2em; align-items: start; }
+/* narrow/portrait screens: stack the columns and tighten padding */
+@media (orientation: portrait) {
+  .tv { padding: 1.2em .9em; }
+  .tv th, .tv td { padding: .5em .45em; }
+  .tv-cols { grid-template-columns: 1fr; }
+}

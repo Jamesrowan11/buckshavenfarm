@@ -1,137 +1,106 @@
-# Deploying the portal to your AWS Ubuntu Plesk server
+# Putting the portal live — all through the Plesk panel, no terminal
 
-The portal is embedded in the main website: it lives at
-**https://buckshavenfarm.com/portal** — same domain as the public site, no
-subdomain. The public site stays as static files in `httpdocs`; the portal is
-a Node.js app running on a local port, and nginx (managed by Plesk) forwards
-every `/portal` request to it. The app is built with `basePath: "/portal"`,
-so all of its pages, assets, and cookies already expect that URL.
+The portal lives at **https://buckshavenfarm.com/portal** — same domain as the
+website. Everything below happens in the Plesk web panel with clicks; the only
+typing is names, passwords, and two one-word script names.
 
-## 1. Create the database (Plesk → Databases)
+**How it works:** Plesk's Node.js manager runs the portal app (startup file
+`server.js`, already in the repo). Your static website keeps being served
+from `httpdocs` exactly as now — Plesk serves real files first and only sends
+leftover addresses (like `/portal/...`) to the app.
 
-1. **Add Database** → name `bhf_portal`.
-2. Add a database user `bhf_portal` with a strong password (write it down).
-3. Done — tables are created by Prisma migrations on deploy.
+---
 
-## 2. Put the code on the server
+## One-time setup
 
-Clone the repo somewhere OUTSIDE `httpdocs` (it must not be web-served), e.g.:
+### 1. Create the database
 
-```bash
-cd /var/www/vhosts/buckshavenfarm.com
-git clone https://github.com/Jamesrowan11/buckshavenfarm.git repo
-```
+Plesk → **Databases → Add Database**
+- Database name: `bhf_portal`
+- Related site: buckshavenfarm.com
+- Add a database user: `bhf_portal` + a strong password → **OK**
+- Keep the password handy for step 3.
 
-## 3. Configure and build
+### 2. Connect the repository
 
-```bash
-cd /var/www/vhosts/buckshavenfarm.com/repo/portal
-cp .env.example .env
-nano .env      # fill in:
-#   DATABASE_URL="mysql://bhf_portal:PASSWORD@localhost:3306/bhf_portal"
-#   AUTH_SECRET="(openssl rand -base64 48)"
-#   SEED_PASSWORD="the initial family password"
-#   UPLOADS_DIR="/var/www/vhosts/buckshavenfarm.com/portal-uploads"
+Plesk → **Websites & Domains → buckshavenfarm.com → Git → Add Repository**
+- Remote Git hosting → URL: `https://github.com/Jamesrowan11/buckshavenfarm.git`
+- Branch: `main` (or the branch you're using)
+- **Deployment path: create/choose a folder that is NOT `httpdocs`**, e.g.
+  `bhf-repo` — the repo must not be web-served.
+- Deployment mode: Automatic → **OK**. Plesk clones the repo for you.
 
-mkdir -p /var/www/vhosts/buckshavenfarm.com/portal-uploads
-npm install
-npm run deploy          # prisma migrate deploy + generate + next build
-npm run seed            # creates the four family accounts (safe to re-run)
-```
+### 3. Turn on the Node.js app
 
-## 4. Run it as a service (port 3001)
+Plesk → **Websites & Domains → buckshavenfarm.com → Node.js**
+- Node.js version: **22** (or newest offered)
+- Document Root: `httpdocs`  ← unchanged — this keeps the public website live
+- Application Root: `bhf-repo/portal`
+- Application Startup File: `server.js`
+- Application Mode: `production`
+- **Custom environment variables** → add these four:
 
-Create `/etc/systemd/system/bhf-portal.service` (as root):
+| Name | Value |
+| --- | --- |
+| `DATABASE_URL` | `mysql://bhf_portal:YOUR-DB-PASSWORD@localhost:3306/bhf_portal` |
+| `AUTH_SECRET` | any long random string, 50+ characters — a password generator on its longest setting is perfect |
+| `SEED_PASSWORD` | the first-login password for the four family accounts |
+| `UPLOADS_DIR` | `/var/www/vhosts/buckshavenfarm.com/bhf-uploads` |
 
-```ini
-[Unit]
-Description=Bucks Haven Farm portal
-After=network.target mariadb.service
+- For `UPLOADS_DIR`, also create that folder once: **Files** → Home directory
+  → **+ → Create Directory** → `bhf-uploads`. (Horse documents are stored
+  there, outside the web root, so nobody can download them without logging in.)
+- Click **Enable Node.js** if it isn't enabled yet.
 
-[Service]
-WorkingDirectory=/var/www/vhosts/buckshavenfarm.com/repo/portal
-# standalone build output; .env in WorkingDirectory is loaded by Next
-ExecStart=/usr/bin/node .next/standalone/server.js
-Environment=NODE_ENV=production
-Environment=PORT=3001
-Environment=HOSTNAME=127.0.0.1
-Restart=always
-User=buckshavenfarm     # your Plesk subscription's system user
+### 4. Install, build, seed — three buttons
 
-[Install]
-WantedBy=multi-user.target
-```
+Still on the Node.js screen:
+1. **NPM Install** — installs the app's packages (a few minutes).
+2. **Run script** → type `deploy` → Run. Builds the app and creates all the
+   database tables.
+3. **Run script** → type `seed` → Run. Creates the four family logins
+   (James + Cynthia as admins, Theresa + Landen as employees).
+4. **Restart App**.
 
-```bash
-# the standalone server needs the static assets beside it:
-cd /var/www/vhosts/buckshavenfarm.com/repo/portal
-cp -r .next/static .next/standalone/.next/static
-cp -r public .next/standalone/public
+### 5. Sign in
 
-systemctl daemon-reload
-systemctl enable --now bhf-portal
-curl -I http://127.0.0.1:3001/portal/login    # expect 200
-```
+Go to **https://buckshavenfarm.com/portal** — log in as
+`james@northvaleunified.com` with your `SEED_PASSWORD`. Change passwords,
+then add staff and boarders under **Users** / **Boarders**, or bulk-load
+everyone from a spreadsheet via **Import**.
 
-## 5. Wire nginx (Plesk UI — no SSH needed for this part)
+---
 
-Plesk → **Websites & Domains → buckshavenfarm.com → Apache & nginx Settings**
-→ **Additional nginx directives**, paste:
+## Updating the portal later
 
-```nginx
-location /portal {
-    proxy_pass http://127.0.0.1:3001;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    client_max_body_size 30m;    # document uploads
-}
-```
+When new code is pushed to GitHub:
+1. **Git** → the repo pulls automatically (or click **Pull Updates**).
+2. **Node.js** → **NPM Install** → **Run script:** `deploy` → **Restart App**.
 
-Save — Plesk reloads nginx automatically. The public site keeps being served
-from `httpdocs` for every other URL; only `/portal/...` reaches the app.
+Database changes are included automatically — `deploy` applies them.
 
-Visit **https://buckshavenfarm.com/portal** → sign in as
-`james@northvaleunified.com` with the `SEED_PASSWORD` you set.
+*(Optional, to make updates one click: Git → Repository Settings → "Actions
+for additional deployment" → paste `cd portal && npm install && npm run deploy`
+once. After that, every pull rebuilds itself — you only click Restart App.)*
 
-## 6. Every update after that
+---
 
-```bash
-cd /var/www/vhosts/buckshavenfarm.com/repo
-git pull
-cd portal && npm install && npm run deploy
-cp -r .next/static .next/standalone/.next/static
-cp -r public .next/standalone/public
-systemctl restart bhf-portal
-```
+## Barn TVs
 
-Database changes ship as migrations and run automatically during deploy.
-
-## 7. Barn TVs
-
-Point each barn TV's browser at (no login needed, auto-refreshes every 60s):
+Point each TV's browser at (no login needed — refreshes every 60 seconds and
+auto-sizes itself to any TV, landscape or portrait, however many horses):
 
 - `https://buckshavenfarm.com/portal/barn-display/log-barn`
 - `https://buckshavenfarm.com/portal/barn-display/arena-barn`
 
-## 8. Retiring the old Supabase/Cloudflare portal
+---
 
-Once staff confirm the new portal covers their day, take the old Cloudflare
-Pages project offline and remove the Supabase keys. If real data accumulated
-there, export it and load boarders/horses via **Import**, or ask Claude for a
-one-shot migration script.
+## Good to know
 
-## Local development
-
-```bash
-cd portal
-cp .env.example .env    # point at a local MySQL/MariaDB
-npm install
-npx prisma migrate dev
-npm run seed
-npm run dev             # http://localhost:3000/portal
-```
+- **The public website is untouched** — same `httpdocs`, same contact form.
+  If the contact form ever stops emailing after enabling Node.js, say so and
+  we'll fold it into the portal app.
+- **Old portal:** once staff are comfortable here, switch off the old
+  Cloudflare Pages project and the Supabase keys.
+- **If something looks stuck:** the Node.js screen has the app's log under
+  **Show Logs** — send Claude a screenshot of the last lines.
