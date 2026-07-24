@@ -1,0 +1,268 @@
+// Bucks Haven Farm portal — Prisma schema (MariaDB/MySQL)
+// Ports every table from supabase/schema.sql and adds Phase 1:
+// boarders, horse ownership, emergency contacts, document vault.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+  BOARDER
+}
+
+enum Barn {
+  LOG_BARN
+  ARENA_BARN
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TimeOffStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+enum FeedingType {
+  AM
+  PM
+}
+
+enum ClockAction {
+  IN
+  OUT
+}
+
+enum Audience {
+  STAFF
+  ALL
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(EMPLOYEE)
+  phone        String?
+  billingEmail String? // invoices go here when it differs from login email
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  horses            HorseOwner[]
+  emergencyContacts EmergencyContact[]
+  tasksAssigned     Task[]             @relation("TaskAssignee")
+  tasksCreated      Task[]             @relation("TaskCreator")
+  shifts            Shift[]
+  availability      Availability[]
+  timeOffRequests   TimeOffRequest[]   @relation("TimeOffEmployee")
+  timeOffReviews    TimeOffRequest[]   @relation("TimeOffReviewer")
+  feedingCharts     FeedingChart[]
+  feedingLogs       FeedingLog[]
+  announcements     Announcement[]
+  clockLogs         ClockLog[]
+  adminNotes        AdminNote[]
+  documents         Document[]
+}
+
+model Horse {
+  id        String   @id @default(cuid())
+  name      String // barn name — what everyone actually calls the horse
+  showName  String?
+  barn      Barn?
+  stall     String?
+  notes     String?  @db.Text
+  active    Boolean  @default(true)
+  photoPath String?
+  createdAt DateTime @default(now())
+
+  // care team of record — no hunting for numbers during a colic
+  vetName      String?
+  vetPhone     String?
+  farrierName  String?
+  farrierPhone String?
+
+  // pre-authorized emergency vet spend when the owner is unreachable
+  emergencySpendLimit Int?
+
+  owners       HorseOwner[]
+  documents    Document[]
+  feedingChart FeedingChart?
+  feedingLogs  FeedingLog[]
+}
+
+model HorseOwner {
+  horseId String
+  userId  String
+  horse   Horse  @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([horseId, userId])
+  @@index([userId])
+}
+
+model EmergencyContact {
+  id       String  @id @default(cuid())
+  userId   String
+  name     String
+  phone    String
+  relation String?
+  priority Int     @default(1) // call order: 1 first
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Document {
+  id           String   @id @default(cuid())
+  horseId      String
+  title        String
+  filename     String // stored name on disk (randomized)
+  originalName String
+  mimeType     String
+  size         Int
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  horse      Horse @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  uploadedBy User? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([horseId])
+}
+
+model Task {
+  id           String    @id @default(cuid())
+  title        String
+  notes        String?   @db.Text
+  assignedToId String?
+  createdById  String?
+  dueDate      DateTime?
+  priority     Priority  @default(MEDIUM)
+  done         Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  assignedTo User? @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy  User? @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([assignedToId])
+}
+
+model Shift {
+  id         String   @id @default(cuid())
+  employeeId String
+  date       DateTime @db.Date
+  startTime  String // "07:00"
+  endTime    String // "15:30"
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  employee User @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, date])
+}
+
+model Availability {
+  id            String   @id @default(cuid())
+  employeeId    String
+  weekStart     DateTime @db.Date
+  availableDays Json // { mon: true, tue: false, ... }
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  employee User @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, weekStart])
+}
+
+model TimeOffRequest {
+  id           String        @id @default(cuid())
+  employeeId   String
+  startDate    DateTime      @db.Date
+  endDate      DateTime      @db.Date
+  reason       String?
+  status       TimeOffStatus @default(PENDING)
+  reviewedById String?
+  createdAt    DateTime      @default(now())
+
+  employee   User  @relation("TimeOffEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("TimeOffReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([employeeId])
+}
+
+model FeedingChart {
+  id                    String   @id @default(cuid())
+  horseId               String   @unique
+  amFeed                String?  @db.Text
+  pmFeed                String?  @db.Text
+  supplements           String?  @db.Text
+  specialNotes          String?  @db.Text
+  responsibleEmployeeId String?
+  createdAt             DateTime @default(now())
+
+  horse               Horse @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  responsibleEmployee User? @relation(fields: [responsibleEmployeeId], references: [id], onDelete: SetNull)
+
+  feedingLogs FeedingLog[]
+}
+
+model FeedingLog {
+  id          String      @id @default(cuid())
+  chartId     String?
+  horseId     String
+  employeeId  String?
+  feedingType FeedingType
+  done        Boolean     @default(false)
+  date        DateTime    @db.Date
+  createdAt   DateTime    @default(now())
+
+  chart    FeedingChart? @relation(fields: [chartId], references: [id], onDelete: Cascade)
+  horse    Horse         @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  employee User?         @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@unique([horseId, feedingType, date])
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  body        String?  @db.Text
+  audience    Audience @default(STAFF) // ALL = boarders + barn display too
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+}
+
+model ClockLog {
+  id        String      @id @default(cuid())
+  userId    String
+  userName  String      @default("")
+  action    ClockAction
+  createdAt DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model AdminNote {
+  id          String   @id @default(cuid())
+  title       String
+  body        String?  @db.Text
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+}
