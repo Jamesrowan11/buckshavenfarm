@@ -11,16 +11,14 @@
   },
   "dependencies": {
     "@prisma/client": "^6.10.0",
+    "@types/node": "^22",
+    "@types/react": "^19",
     "bcryptjs": "^3.0.2",
     "jose": "^5.9.6",
     "next": "^15.3.4",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22",
-    "@types/react": "^19",
     "prisma": "^6.10.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "typescript": "^5"
   }
 }
