@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "deploy": "prisma migrate deploy && prisma generate && next build",
+    "deploy": "prisma migrate deploy && prisma generate && next build && node scripts/sync-website.js",
     "seed": "node prisma/seed.js"
   },
   "dependencies": {

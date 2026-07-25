@@ -2,5 +2,6 @@ node_modules/
 .next/
 .env
 uploads/
+httpdocs/
 *.tsbuildinfo
 next-env.d.ts

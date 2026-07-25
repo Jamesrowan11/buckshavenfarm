@@ -5,9 +5,13 @@ website. Everything below happens in the Plesk web panel with clicks; the only
 typing is names, passwords, and two one-word script names.
 
 **How it works:** Plesk's Node.js manager runs the portal app (startup file
-`server.js`, already in the repo). Your static website keeps being served
-from `httpdocs` exactly as now — Plesk serves real files first and only sends
-leftover addresses (like `/portal/...`) to the app.
+`server.js`, already in the repo). Plesk requires the domain's document root
+to sit INSIDE the app folder, so the deploy step copies the public website
+into `portal/httpdocs` automatically — the domain's Document Root points
+there, static pages are served first, and leftover addresses (`/portal/...`)
+go to the app. The website's contact form and gallery run inside the app
+(`/portal/api/tour-request`, `/portal/api/site-gallery`) — the old PHP files
+are not used anymore.
 
 ---
 
@@ -34,10 +38,14 @@ Plesk → **Websites & Domains → buckshavenfarm.com → Git → Add Repository
 
 Plesk → **Websites & Domains → buckshavenfarm.com → Node.js**
 - Node.js version: **22** (or newest offered)
-- Document Root: `httpdocs`  ← unchanged — this keeps the public website live
 - Application Root: `bhf-repo/portal`
 - Application Startup File: `server.js`
 - Application Mode: `production`
+- Document Root: `bhf-repo/portal/httpdocs`  ← MUST be inside the app root;
+  this folder is created by the `deploy` script (step 4) and contains a copy
+  of the public website, refreshed on every deploy. Change it under
+  **Hosting Settings** after step 4 if Plesk won't accept it before the
+  folder exists.
 - **Custom environment variables** → add these four:
 
 | Name | Value |

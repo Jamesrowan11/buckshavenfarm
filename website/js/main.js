@@ -69,7 +69,7 @@
   /* ── 3. self-updating gallery ───────────────────────── */
   const galleryGrid = document.getElementById("galleryGrid");
   if (galleryGrid) {
-    fetch("api/gallery.php")
+    fetch("/portal/api/site-gallery")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((files) => renderGallery(Array.isArray(files) ? files : []))
       .catch(() => renderGallery([]));
