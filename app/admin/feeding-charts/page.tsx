@@ -1,66 +1,60 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/current";
+import {
+  createHorse as create,
+  deleteHorse as remove,
+  listAllHorses,
+  listCharts,
+  saveFeedingChart,
+} from "@/lib/services/feeding";
+import { listUserOptions } from "@/lib/services/users";
+import { field } from "@/lib/validation";
+import type { FeedingChartWithResponsible } from "@/lib/types";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
 async function createHorse(formData: FormData) {
   "use server";
-  const supabase = createClient();
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) return;
-  await supabase.from("horses").insert({
-    name,
-    notes: (formData.get("notes") as string) || null,
-  });
+  const actor = await requireAdmin();
+  if (!field(formData, "name")) return;
+  await create(actor, { name: field(formData, "name"), notes: field(formData, "notes") });
   revalidatePath("/admin/feeding-charts");
 }
 
 async function deleteHorse(id: string) {
   "use server";
-  const supabase = createClient();
-  await supabase.from("horses").delete().eq("id", id);
+  const actor = await requireAdmin();
+  await remove(actor, id);
   revalidatePath("/admin/feeding-charts");
 }
 
 async function upsertChart(horseId: string, formData: FormData) {
   "use server";
-  const supabase = createClient();
-  const existingId = (formData.get("id") as string) || null;
-  const rawBarn = (formData.get("barn") as string) || "";
-  const barn = rawBarn === "log-barn" || rawBarn === "arena-barn" ? rawBarn : null;
-
-  const payload = {
-    horse_id: horseId,
-    am_feed: (formData.get("am_feed") as string) || null,
-    pm_feed: (formData.get("pm_feed") as string) || null,
-    supplements: (formData.get("supplements") as string) || null,
-    special_notes: (formData.get("special_notes") as string) || null,
-    responsible_employee: (formData.get("responsible_employee") as string) || null,
-    barn,
-  };
-
-  if (existingId) {
-    await supabase.from("feeding_charts").update(payload).eq("id", existingId);
-  } else {
-    await supabase.from("feeding_charts").insert(payload);
-  }
-  // Keep horses.barn in sync so the public /barn-display/<barn> page can
-  // filter on horse.barn directly without a chart join.
-  await supabase.from("horses").update({ barn }).eq("id", horseId);
+  const actor = await requireAdmin();
+  // Creates or updates the horse's chart and keeps horses.barn in sync so the
+  // public /barn-display/<barn> page can filter on it (one transaction).
+  await saveFeedingChart(actor, horseId, {
+    am_feed: field(formData, "am_feed"),
+    pm_feed: field(formData, "pm_feed"),
+    supplements: field(formData, "supplements"),
+    special_notes: field(formData, "special_notes"),
+    responsible_employee: field(formData, "responsible_employee"),
+    barn: field(formData, "barn"),
+  });
   revalidatePath("/admin/feeding-charts");
 }
 
 export default async function AdminFeedingChartsPage() {
-  const supabase = createClient();
-  const [{ data: horses }, { data: charts }, { data: employees }] = await Promise.all([
-    supabase.from("horses").select("*").order("name"),
-    supabase.from("feeding_charts").select("*"),
-    supabase.from("profiles").select("id, name").order("name"),
+  const actor = await requireAdmin();
+  const [horses, charts, employees] = await Promise.all([
+    listAllHorses(actor),
+    listCharts(actor),
+    listUserOptions(actor),
   ]);
 
-  const chartByHorse = new Map<string, any>();
-  (charts ?? []).forEach((c: any) => chartByHorse.set(c.horse_id, c));
+  const chartByHorse = new Map<string, FeedingChartWithResponsible>();
+  charts.forEach((c) => chartByHorse.set(c.horse_id, c));
 
   return (
     <div className="space-y-6">
@@ -75,11 +69,11 @@ export default async function AdminFeedingChartsPage() {
         <button className="btn-primary">Add horse</button>
       </form>
 
-      {(horses?.length ?? 0) === 0 ? (
+      {horses.length === 0 ? (
         <EmptyState title="No horses yet" hint="Add one above to start." />
       ) : (
         <div className="space-y-4">
-          {horses!.map((h: any) => {
+          {horses.map((h) => {
             const chart = chartByHorse.get(h.id);
             return (
               <div key={h.id} className="card">
@@ -101,8 +95,7 @@ export default async function AdminFeedingChartsPage() {
                   </form>
                 </div>
                 <form action={upsertChart.bind(null, h.id)} className="space-y-3">
-                  {chart && <input type="hidden" name="id" value={chart.id} />}
-                  <div className="grid sm:grid-cols-2 gap-3">
+                                    <div className="grid sm:grid-cols-2 gap-3">
                     <div>
                       <label className="label">AM feed</label>
                       <textarea name="am_feed" rows={2} defaultValue={chart?.am_feed ?? ""} className="input" />
@@ -119,7 +112,7 @@ export default async function AdminFeedingChartsPage() {
                       <label className="label">Responsible employee</label>
                       <select name="responsible_employee" defaultValue={chart?.responsible_employee ?? ""} className="input">
                         <option value="">—</option>
-                        {employees?.map((e: any) => (
+                        {employees.map((e) => (
                           <option key={e.id} value={e.id}>
                             {e.name}
                           </option>

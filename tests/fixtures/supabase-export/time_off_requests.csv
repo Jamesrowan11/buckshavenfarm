@@ -1,0 +1,2 @@
+id,employee_id,start_date,end_date,reason,status,reviewed_by,created_at
+22222222-0000-4000-8000-000000000001,aaaaaaaa-0000-4000-8000-000000000002,2025-05-01,2025-05-03,Trip,approved,aaaaaaaa-0000-4000-8000-000000000001,2025-04-01 00:00:00+00

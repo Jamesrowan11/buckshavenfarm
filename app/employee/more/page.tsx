@@ -7,6 +7,7 @@ const items = [
   { href: "/employee/availability", label: "Submit availability", icon: "⏱" },
   { href: "/employee/time-off", label: "Time-off requests", icon: "✈" },
   { href: "/employee/announcements", label: "Announcements", icon: "✎" },
+  { href: "/employee/account", label: "Change password", icon: "⚿" },
 ];
 
 export default function EmployeeMorePage() {

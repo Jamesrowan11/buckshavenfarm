@@ -1,109 +1,103 @@
 # Bucks Haven Farm
 
-Farm operations portal — Next.js 14 (App Router) + Supabase + Tailwind.
+Farm operations portal: Next.js 15 (App Router) + MySQL/MariaDB + Tailwind,
+self-hosted on Plesk with its Node.js extension.
 
-## Step 1 — install Node.js
+- **Deploying to Plesk:** [docs/PLESK_DEPLOYMENT.md](docs/PLESK_DEPLOYMENT.md)
+- **Bringing over data from the old Supabase project:** [docs/DATA_MIGRATION.md](docs/DATA_MIGRATION.md)
+- **What changed in the Supabase → Plesk migration, and test results:** [docs/MIGRATION_NOTES.md](docs/MIGRATION_NOTES.md)
 
-This machine doesn't have Node yet. Install **Node.js 20 LTS** from <https://nodejs.org/en/download>.
-After installing, open a **new** PowerShell window so the PATH refreshes, then verify:
+## Features
 
-```powershell
-node --version   # expect v20.x
-npm --version
-```
+| Area | Admin | Employee |
+|---|---|---|
+| Dashboard | open tasks, today's shifts, who's clocked in, pending time off | today's shift, my tasks, announcements |
+| Tasks | create / assign / complete / delete | complete, comment (own or "everyone" tasks) |
+| Schedule | create / delete shifts for the week | my week |
+| Availability & time off | review availability, approve/deny requests | submit availability, request time off |
+| Feeding charts | horses, AM/PM charts, supplements, barn assignment | today's checklist, mark fed |
+| Barn displays | `/barn-display`, `/barn-display/log-barn`, `/barn-display/arena-barn`: public TV screens with clock, weather, feeding status and announcements | |
+| Announcements | post / delete | read |
+| Clock | full clock log | clock in / out |
+| Employees | add users, set roles, rename, reset passwords, remove | change own password |
+| Admin notes | private notes | |
 
-## Step 2 — Supabase setup
+## Local development
 
-1. Open the SQL editor at <https://supabase.com/dashboard/project/xtvwxgqrzswsuzouztkt/sql/new>
-2. Paste the contents of `supabase/schema.sql` and run it. This creates every table, RLS policy, and a trigger that auto-creates a profile row on user signup.
-3. In **Authentication → Users → Add user** create one user for each of the four people, using email + a temporary password (uncheck "auto-confirm" only if you want them to confirm by email):
-   - `james@northvaleunified.com`
-   - `cynthiarowan777@gmail.com`
-   - `theresarowan777@gmail.com`
-   - `landenrowan@gmail.com`
-   The trigger inserts a `profiles` row for each. The `update` blocks at the bottom of `schema.sql` then promote James + Cynthia to `admin` and fix display names. Re-run those two `update` statements after creating the users (the trigger uses lowercase emails, the seed expects lowercase — already matched).
-4. **Authentication → URL configuration** → add your Cloudflare Pages domain (and `http://localhost:3000` for dev) to the **Site URL** + **Redirect URLs** lists.
-
-## Step 3 — local dev
-
-```powershell
-cd C:\Users\Administrator\BucksHavenFarm
-npm install
-npm run dev
-```
-
-Open <http://localhost:3000>, sign in as any of the four users.
-
-## Step 4 — deploy to Cloudflare Pages
-
-This project ships with `@cloudflare/next-on-pages@1.13.15` (the last version
-that supports Next.js 14.2.x). Every server-rendered route is opted into the
-Edge runtime via `export const runtime = "edge"`.
-
-### Cloudflare Pages dashboard settings
-
-In the Pages project → **Settings → Builds & deployments**:
-
-| Setting                | Value                                       |
-| ---------------------- | ------------------------------------------- |
-| Build command          | `npx @cloudflare/next-on-pages@1.13.15`     |
-| Build output directory | `.vercel/output/static`                     |
-| Root directory         | (leave blank)                               |
-| Node version           | env var `NODE_VERSION` = `20.18.1`          |
-
-In **Settings → Functions → Compatibility flags**:
-- Add `nodejs_compat` (both Production and Preview).
-
-In **Settings → Environment variables**:
-- `NEXT_PUBLIC_SUPABASE_URL` = `https://xtvwxgqrzswsuzouztkt.supabase.co`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` = (value from `.env.local`)
-
-Bind both vars to **Production** and **Preview**, then trigger a redeploy.
-
-### Local Cloudflare-style build (Linux / macOS / WSL only)
-
-The `next-on-pages` CLI shells out via bash and isn't reliable on raw Windows.
-On Linux/macOS/WSL:
+Requirements: Node.js 20.9+ (22 LTS recommended) and a local MySQL 8 or
+MariaDB 10.5+ database.
 
 ```bash
-npm run pages:build         # produces .vercel/output/static
-npm run pages:preview       # serve locally with wrangler
-npm run pages:deploy        # direct wrangler deploy (requires wrangler login)
+npm install
+cp .env.example .env.local        # then fill in DB_* for your local database
+npm run db:migrate                # create the tables
+npm run create-admin -- --email you@example.com --name "Your Name"
+npm run dev                       # http://localhost:3000
 ```
 
-### Post-deploy
+Locally over plain HTTP, `npm run dev` works as-is; `next dev` doesn't mark
+cookies Secure.
 
-Add the Cloudflare Pages URL (e.g. `https://buckshavenfarm.pages.dev`) to the
-Supabase **Authentication → URL configuration** Site URL + Redirect URL lists.
+## Scripts
 
-### Future: switch to OpenNext (optional)
+| Command | What it does |
+|---|---|
+| `npm run dev` | development server |
+| `npm run build` | production build (`next build`) |
+| `npm start` | production server via `next start` (honours `PORT`) |
+| `npm run start:plesk` | production server via `server.js` (what Plesk/Passenger runs) |
+| `npm run lint` / `npm run typecheck` | ESLint / TypeScript |
+| `npm test` | all tests (integration and e2e tests need `TEST_DATABASE_URL`, see below) |
+| `npm run db:migrate` | apply pending SQL migrations in `db/migrations` (never drops data) |
+| `npm run db:status` | list applied/pending migrations |
+| `npm run db:check` | database health check (connection, time zone, migrations, admin exists) |
+| `npm run create-admin -- --email … --name …` | create the first administrator (server-side only) |
+| `npm run set-password -- --email …` | set a user's password from the server (account recovery) |
+| `npm run import:supabase -- --dir … [--dry-run]` | one-time import of exported Supabase data |
+| `npm run db:seed-demo -- --yes` | optional sample horses + announcement for an empty test install |
 
-`@cloudflare/next-on-pages` was deprecated in favor of
-[OpenNext for Cloudflare](https://opennext.js.org/cloudflare). The OpenNext
-adapter supports the Node.js runtime, so a future migration could remove the
-`export const runtime = "edge"` lines and stop relying on `next-on-pages`.
+## Tests
+
+```bash
+npm run test:unit                                   # no database needed
+
+# Integration + end-to-end tests use a throwaway database whose name contains
+# "test". They DROP and recreate its tables.
+export TEST_DATABASE_URL='mysql://bhf_test:<password>@localhost:3306/bhf_test'
+npm run build                                       # e2e tests start the production build
+npm test
+```
 
 ## Project layout
 
 ```
-app/
-  login/                   # public sign-in
-  admin/                   # admin portal (sidebar nav)
-    page.tsx               # dashboard
-    tasks/ schedule/ availability/ feeding-charts/
-    announcements/ employees/ clock-log/ notes/
-  employee/                # employee portal (bottom-nav)
-    page.tsx               # home
-    tasks/ schedule/ feeding-charts/ availability/
-    time-off/ clock/ announcements/ more/
-components/                # AdminSidebar, EmployeeBottomNav, etc.
-lib/supabase/              # browser/server/middleware clients
-supabase/schema.sql        # tables, RLS, trigger, seed
-middleware.ts              # auth refresh + route protection
+app/                    # routes (admin/, employee/, barn-display/, login/, logout/, api/)
+  api/auth/login/       # sign-in endpoint (sets the session cookie)
+  api/barn-display/     # public read-only data for the barn TVs
+  api/health/           # health check for monitoring
+components/             # sidebar, bottom nav, barn display, badges
+lib/
+  db.ts                 # server-only MySQL pool, queries, transactions
+  auth/                 # sessions, login throttling, CSRF/origin checks, current user
+  services/             # one module per feature; every function authorizes its caller
+  shared/               # DB config + Argon2id hashing (shared with the CLI scripts)
+  time.ts               # UTC storage / farm-time-zone display
+  validation.ts         # input validation
+db/migrations/          # versioned SQL schema
+scripts/                # migrate, db-check, create-admin/set-password, Supabase import, demo seed
+server.js               # production entry point for Plesk/Passenger
+middleware.ts           # redirects visitors without a session cookie to /login
+tests/                  # unit, integration (MariaDB) and e2e (production server) tests
+docs/                   # deployment, data migration, migration notes; legacy Supabase schema
 ```
 
 ## Roles & access
-- **admin** — full access (sidebar nav on desktop, bottom nav on phone)
-- **employee** — own tasks/schedule, feed checklist, availability, time off, clock, announcements
 
-Toggle roles from `/admin/employees`.
+- **admin**: full access (sidebar on desktop, bottom nav on phones). Admins can
+  also open the employee portal.
+- **employee**: own tasks and tasks for everyone, own schedule, feeding checklist,
+  availability, time off, clock, announcements.
+
+Roles are stored in the database and checked on the server for every page,
+form action and API call; hiding a button is never the only protection.
+Change roles from `/admin/employees`.

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 export type BarnFilter = "log-barn" | "arena-barn";
 
@@ -9,22 +8,22 @@ type Horse = {
   id: string;
   name: string;
   notes: string | null;
-  active: boolean;
   barn: BarnFilter | null;
 };
 type Chart = {
-  id: string;
   horse_id: string;
   am_feed: string | null;
   pm_feed: string | null;
   supplements: string | null;
   special_notes: string | null;
-  responsible_employee: string | null;
-  barn: BarnFilter | null;
-  profiles: { name: string } | null;
+  responsible_name: string | null;
 };
-type Log = { horse_id: string; feeding_type: "AM" | "PM"; done: boolean; date: string };
+type Log = { horse_id: string | null; feeding_type: "AM" | "PM"; done: boolean };
 type Announcement = { id: string; title: string; body: string | null; created_at: string };
+type BarnData = { horses: Horse[]; charts: Chart[]; logs: Log[]; announcements: Announcement[] };
+
+// The screens poll the server for changes (this replaced Supabase Realtime).
+const REFRESH_MS = 15_000;
 type Weather = {
   temperature_2m: number;
   relative_humidity_2m: number;
@@ -64,28 +63,19 @@ export default function BarnDisplayClient({
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchAll = useCallback(async () => {
-    const supabase = createClient();
-    const today = new Date().toISOString().slice(0, 10);
-
-    let horsesQuery = supabase.from("horses").select("*").eq("active", true).order("name");
-    if (barnFilter) horsesQuery = horsesQuery.eq("barn", barnFilter);
-
-    const [horseRes, chartRes, logRes, annRes] = await Promise.all([
-      horsesQuery,
-      supabase.from("feeding_charts").select("*, profiles:responsible_employee(name)"),
-      supabase.from("feeding_logs").select("horse_id, feeding_type, done, date").eq("date", today),
-      supabase
-        .from("announcements")
-        .select("id, title, body, created_at")
-        .order("created_at", { ascending: false })
-        .limit(3),
-    ]);
-
-    setHorses((horseRes.data as Horse[] | null) ?? []);
-    setCharts((chartRes.data as unknown as Chart[] | null) ?? []);
-    setLogs((logRes.data as Log[] | null) ?? []);
-    setAnnouncements((annRes.data as Announcement[] | null) ?? []);
-    setLastUpdated(new Date());
+    try {
+      const qs = barnFilter ? `?barn=${encodeURIComponent(barnFilter)}` : "";
+      const r = await fetch(`/api/barn-display${qs}`, { cache: "no-store" });
+      if (!r.ok) return; // keep showing the last good data
+      const data = (await r.json()) as BarnData;
+      setHorses(data.horses ?? []);
+      setCharts(data.charts ?? []);
+      setLogs(data.logs ?? []);
+      setAnnouncements(data.announcements ?? []);
+      setLastUpdated(new Date());
+    } catch {
+      // Network blip: keep the last good data; the next poll retries.
+    }
   }, [barnFilter]);
 
   const fetchWeather = useCallback(async () => {
@@ -106,30 +96,9 @@ export default function BarnDisplayClient({
 
   useEffect(() => {
     void fetchAll();
-
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`barn-display-${barnFilter ?? "all"}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "feeding_logs" }, () =>
-        void fetchAll()
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "feeding_charts" }, () =>
-        void fetchAll()
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "horses" }, () =>
-        void fetchAll()
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, () =>
-        void fetchAll()
-      )
-      .subscribe();
-
-    const poll = setInterval(fetchAll, 60_000);
-    return () => {
-      void supabase.removeChannel(channel);
-      clearInterval(poll);
-    };
-  }, [fetchAll, barnFilter]);
+    const poll = setInterval(fetchAll, REFRESH_MS);
+    return () => clearInterval(poll);
+  }, [fetchAll]);
 
   useEffect(() => {
     void fetchWeather();
@@ -141,7 +110,7 @@ export default function BarnDisplayClient({
   charts.forEach((c) => chartByHorse.set(c.horse_id, c));
   const logKey = (h: string, t: "AM" | "PM") => `${h}|${t}`;
   const logMap = new Map<string, Log>();
-  logs.forEach((l) => logMap.set(logKey(l.horse_id, l.feeding_type), l));
+  logs.forEach((l) => l.horse_id && logMap.set(logKey(l.horse_id, l.feeding_type), l));
 
   const wx = weather ? weatherInfo(weather.weather_code) : null;
 
@@ -211,9 +180,9 @@ export default function BarnDisplayClient({
                       </span>
                       <span className="text-3xl font-bold leading-tight">{h.name}</span>
                     </div>
-                    {c?.profiles?.name && (
+                    {c?.responsible_name && (
                       <div className="text-base text-white/60">
-                        Responsible: <span className="text-white/90">{c.profiles.name}</span>
+                        Responsible: <span className="text-white/90">{c.responsible_name}</span>
                       </div>
                     )}
                     <FeedRow label="AM" text={c?.am_feed} done={amDone} />

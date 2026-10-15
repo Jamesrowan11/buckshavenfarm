@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
-import { getSessionAndProfile } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/current";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const { user, profile } = await getSessionAndProfile();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (profile?.role === "admin") redirect("/admin");
+  if (user.role === "admin") redirect("/admin");
   redirect("/employee");
 }

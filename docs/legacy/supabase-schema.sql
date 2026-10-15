@@ -1,4 +1,11 @@
 -- ============================================================
+-- LEGACY — NOT USED BY THE APPLICATION ANYMORE.
+-- This is the old Supabase/PostgreSQL schema, kept only as a reference for
+-- the one-time data import (docs/DATA_MIGRATION.md). The live schema is
+-- db/migrations/*.sql (MySQL/MariaDB), applied with `npm run db:migrate`.
+-- ============================================================
+
+-- ============================================================
 -- Bucks Haven Farm — Supabase schema
 -- ============================================================
 -- Run this in the Supabase SQL editor.

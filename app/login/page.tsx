@@ -2,12 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-
-export const dynamic = "force-dynamic";
 
 export default function LoginPage() {
-  const supabase = createClient();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,14 +14,24 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; redirect?: string };
+      if (!res.ok) {
+        setLoading(false);
+        setError(data.error ?? "Sign-in failed. Please try again.");
+        return;
+      }
+      router.push(data.redirect ?? "/");
+      router.refresh();
+    } catch {
+      setLoading(false);
+      setError("Could not reach the server. Check your connection and try again.");
     }
-    router.push("/");
-    router.refresh();
   }
 
   return (

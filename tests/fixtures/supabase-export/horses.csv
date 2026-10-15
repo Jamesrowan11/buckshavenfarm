@@ -1,0 +1,5 @@
+id,name,notes,active,created_at,barn
+bbbbbbbb-0000-4000-8000-000000000001,Biscuit,"Loves carrots
+and apples",true,2025-02-01 00:00:00+00,log-barn
+bbbbbbbb-0000-4000-8000-000000000002,Arya,,f,2025-02-01 00:00:00+00,
+bbbbbbbb-0000-4000-8000-000000000003,,missing name,true,2025-02-01 00:00:00+00,

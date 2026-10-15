@@ -1,0 +1,4 @@
+id,title,notes,assigned_to,created_by,due_date,priority,done,created_at
+eeeeeeee-0000-4000-8000-000000000001,Fix fence,,aaaaaaaa-0000-4000-8000-000000000002,aaaaaaaa-0000-4000-8000-000000000004,2025-04-01,high,false,2025-03-20 00:00:00+00
+eeeeeeee-0000-4000-8000-000000000002,Bad priority,,,,,urgent,false,2025-03-20 00:00:00+00
+eeeeeeee-0000-4000-8000-000000000003,Deleted assignee,,aaaaaaaa-0000-4000-8000-000000000055,,,low,true,2025-03-20 00:00:00+00

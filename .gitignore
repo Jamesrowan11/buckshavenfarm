@@ -1,12 +1,15 @@
 node_modules
 .next
-.open-next
 out
-.env.local
-.env*.local
+# Environment files hold secrets — only .env.example is committed.
+.env
+.env.*
+!.env.example
 .DS_Store
 *.log
-.vercel
-.wrangler
 .claude/
 next-env.d.ts
+# Supabase export files used by the one-time import (contain personal data).
+/supabase-export/
+import-report-*.json
+*.tsbuildinfo

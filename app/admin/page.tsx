@@ -1,51 +1,58 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/current";
+import { listOpenTasks } from "@/lib/services/tasks";
+import { listShiftsBetween } from "@/lib/services/shifts";
+import { listAnnouncements } from "@/lib/services/announcements";
+import { listClockLogsSince } from "@/lib/services/clock";
+import { listPendingTimeOff } from "@/lib/services/timeOff";
+import { formatInstantDate, hhmm, startOfLocalDayUtc, todayLocal } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboard() {
-  const supabase = createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const actor = await requireAdmin();
+  const today = todayLocal();
 
-  const [{ data: tasksToday }, { data: shiftsToday }, { data: ann }, { data: clockToday }, { data: pendingTOR }] =
-    await Promise.all([
-      supabase.from("tasks").select("*").eq("done", false).order("due_date", { ascending: true }).limit(5),
-      supabase.from("shifts").select("*, profiles:employee_id(name)").eq("date", today),
-      supabase.from("announcements").select("*").order("created_at", { ascending: false }).limit(3),
-      supabase.from("clock_logs").select("*").gte("created_at", `${today}T00:00:00`).order("created_at", { ascending: false }),
-      supabase.from("time_off_requests").select("*, profiles:employee_id(name)").eq("status", "pending"),
-    ]);
+  const [tasksToday, shiftsToday, ann, clockToday, pendingTOR] = await Promise.all([
+    listOpenTasks(actor, 5),
+    listShiftsBetween(actor, today, today),
+    listAnnouncements(actor, 3),
+    listClockLogsSince(actor, startOfLocalDayUtc(today)),
+    listPendingTimeOff(actor),
+  ]);
 
-  // Compute who is clocked in (last action per user)
-  const lastByUser = new Map<string, "in" | "out">();
-  (clockToday ?? []).slice().reverse().forEach((c: any) => lastByUser.set(c.user_id, c.action));
-  const clockedIn = (clockToday ?? []).filter((c: any) => lastByUser.get(c.user_id) === "in" && c.action === "in");
-  const seen = new Set();
-  const currentlyIn = clockedIn.filter((c: any) => (seen.has(c.user_id) ? false : seen.add(c.user_id)));
+  // Who is clocked in right now: users whose latest action today is "in".
+  // clockToday is newest first, so the first row seen per user is their latest.
+  const seen = new Set<string>();
+  const currentlyIn = clockToday.filter((c) => {
+    if (seen.has(c.user_id)) return false;
+    seen.add(c.user_id);
+    return c.action === "in";
+  });
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="h1">Dashboard</h1>
-        <p className="text-stone-600 text-sm">Today is {new Date().toLocaleDateString()}</p>
+        <p className="text-stone-600 text-sm">Today is {formatInstantDate(new Date())}</p>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Stat label="Open tasks" value={String(tasksToday?.length ?? 0)} href="/admin/tasks" />
-        <Stat label="Shifts today" value={String(shiftsToday?.length ?? 0)} href="/admin/schedule" />
+        <Stat label="Open tasks" value={String(tasksToday.length)} href="/admin/tasks" />
+        <Stat label="Shifts today" value={String(shiftsToday.length)} href="/admin/schedule" />
         <Stat label="Clocked in" value={String(currentlyIn.length)} href="/admin/clock-log" />
-        <Stat label="Time-off pending" value={String(pendingTOR?.length ?? 0)} href="/admin/availability" />
+        <Stat label="Time-off pending" value={String(pendingTOR.length)} href="/admin/availability" />
       </div>
 
       <section className="card">
         <h2 className="h2 mb-3">Today&apos;s shifts</h2>
-        {shiftsToday && shiftsToday.length > 0 ? (
+        {shiftsToday.length > 0 ? (
           <ul className="divide-y divide-stone-100">
-            {shiftsToday.map((s: any) => (
+            {shiftsToday.map((s) => (
               <li key={s.id} className="py-2 flex items-center justify-between">
-                <span className="font-medium">{s.profiles?.name ?? "—"}</span>
+                <span className="font-medium">{s.employee_name ?? "—"}</span>
                 <span className="text-stone-600 text-sm">
-                  {s.start_time?.slice(0, 5)} – {s.end_time?.slice(0, 5)}
+                  {hhmm(s.start_time)} – {hhmm(s.end_time)}
                 </span>
               </li>
             ))}
@@ -57,9 +64,9 @@ export default async function AdminDashboard() {
 
       <section className="card">
         <h2 className="h2 mb-3">Latest announcements</h2>
-        {ann && ann.length > 0 ? (
+        {ann.length > 0 ? (
           <ul className="space-y-3">
-            {ann.map((a: any) => (
+            {ann.map((a) => (
               <li key={a.id}>
                 <div className="font-medium">{a.title}</div>
                 <div className="text-sm text-stone-600 line-clamp-2">{a.body}</div>
@@ -74,14 +81,14 @@ export default async function AdminDashboard() {
         </Link>
       </section>
 
-      {pendingTOR && pendingTOR.length > 0 && (
+      {pendingTOR.length > 0 && (
         <section className="card border-amber-200 bg-amber-50">
           <h2 className="h2 mb-3">Pending time-off requests</h2>
           <ul className="space-y-2 text-sm">
-            {pendingTOR.map((r: any) => (
+            {pendingTOR.map((r) => (
               <li key={r.id} className="flex items-center justify-between">
                 <span>
-                  <span className="font-medium">{r.profiles?.name ?? "—"}</span> · {r.start_date} → {r.end_date}
+                  <span className="font-medium">{r.employee_name ?? "—"}</span> · {r.start_date} → {r.end_date}
                 </span>
                 <Link href="/admin/availability" className="text-farm font-medium">
                   Review

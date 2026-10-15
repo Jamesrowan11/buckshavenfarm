@@ -1,38 +1,30 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/current";
+import { createNote as create, deleteNote as remove, listNotes } from "@/lib/services/notes";
+import { field } from "@/lib/validation";
+import { formatDateTime } from "@/lib/time";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
 async function createNote(formData: FormData) {
   "use server";
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const title = String(formData.get("title") ?? "").trim();
-  if (!title) return;
-  await supabase.from("admin_notes").insert({
-    title,
-    body: (formData.get("body") as string) || null,
-    created_by: user?.id ?? null,
-  });
+  const actor = await requireAdmin();
+  if (!field(formData, "title")) return;
+  await create(actor, { title: field(formData, "title"), body: field(formData, "body") });
   revalidatePath("/admin/notes");
 }
 
 async function deleteNote(id: string) {
   "use server";
-  const supabase = createClient();
-  await supabase.from("admin_notes").delete().eq("id", id);
+  const actor = await requireAdmin();
+  await remove(actor, id);
   revalidatePath("/admin/notes");
 }
 
 export default async function AdminNotesPage() {
-  const supabase = createClient();
-  const { data } = await supabase
-    .from("admin_notes")
-    .select("*, profiles:created_by(name)")
-    .order("created_at", { ascending: false });
+  const actor = await requireAdmin();
+  const data = await listNotes(actor);
 
   return (
     <div className="space-y-6">
@@ -46,17 +38,17 @@ export default async function AdminNotesPage() {
         <button className="btn-primary">Save note</button>
       </form>
 
-      {(data?.length ?? 0) === 0 ? (
+      {data.length === 0 ? (
         <EmptyState title="No notes yet" />
       ) : (
         <ul className="space-y-3">
-          {data!.map((n: any) => (
+          {data.map((n) => (
             <li key={n.id} className="card">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="font-semibold">{n.title}</div>
                   <div className="text-xs text-stone-500">
-                    {new Date(n.created_at).toLocaleString()} · {n.profiles?.name ?? "—"}
+                    {formatDateTime(n.created_at)} · {n.author_name ?? "—"}
                   </div>
                 </div>
                 <form action={deleteNote.bind(null, n.id)}>
