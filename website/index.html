@@ -302,7 +302,7 @@
             placeholder="Tell us a little about you and your horse…"></textarea></label>
           <!-- honeypot: bots fill this, humans never see it -->
           <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-          <input type="hidden" name="ts" id="formTs">
+          <input type="hidden" name="token" id="formToken">
           <button type="submit" class="btn btn--gold btn--full">Send Request</button>
           <p class="form__status" id="formStatus" role="status"></p>
         </form>
@@ -335,6 +335,6 @@
     <img src="" alt="" id="lightboxImg">
   </div>
 
-  <script src="js/main.js"></script>
+  <script src="js/main.js?v=2"></script>
 </body>
 </html>

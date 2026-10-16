@@ -8,7 +8,7 @@
    5. Scroll-reveal animations (IntersectionObserver).
    6. Testimonial auto-rotator.
    7. Live "barn office" open/closed badge (hours configured below).
-   8. Ajax tour-request form with honeypot + time-trap spam protection.
+   8. Ajax tour-request form with signed token + honeypot spam protection.
    9. Auto-updating footer year, back-to-top, gallery lightbox.
 */
 
@@ -228,19 +228,30 @@
   }
 
   /* ── 8. ajax tour form ──────────────────────────────── */
+  // Spam protection: the server issues a signed, single-use token when the
+  // page loads; submissions without a valid token (or sent within a few
+  // seconds of loading) are ignored. Honeypot field + rate limits on the server.
   const form = document.getElementById("tourForm");
   const formStatus = document.getElementById("formStatus");
-  const formTs = document.getElementById("formTs");
+  const formToken = document.getElementById("formToken");
   if (form) {
-    const loadedAt = Date.now();
+    const loadToken = () =>
+      fetch(form.action, { method: "GET", cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => { formToken.value = d.token || ""; })
+        .catch(() => {});
+    loadToken();
+    // If the first fetch failed (offline, etc.), try again when they start typing.
+    form.addEventListener("focusin", () => { if (!formToken.value) loadToken(); });
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      formTs.value = String(Date.now() - loadedAt); // ms spent on page (spam time-trap)
       formStatus.className = "form__status";
       formStatus.textContent = "Sending…";
       const btn = form.querySelector('button[type="submit"]');
       btn.disabled = true;
       try {
+        if (!formToken.value) await loadToken();
         const res = await fetch(form.action, { method: "POST", body: new FormData(form) });
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.ok) {
@@ -248,14 +259,18 @@
           formStatus.textContent = "Thank you! We received your request and will be in touch shortly.";
           form.reset();
         } else {
-          throw new Error(data.error || "Something went wrong.");
+          const err = new Error(data.error || "Something went wrong.");
+          err.userMessage = data.error;
+          throw err;
         }
       } catch (err) {
         formStatus.classList.add("err");
         formStatus.textContent =
-          "We couldn't send your message — please call (301) 440-7800 or try again.";
+          err.userMessage || "We couldn't send your message — please call (301) 440-7800 or try again.";
       } finally {
         btn.disabled = false;
+        formToken.value = ""; // tokens are single-use
+        loadToken();
       }
     });
   }

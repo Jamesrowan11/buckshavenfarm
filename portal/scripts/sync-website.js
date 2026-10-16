@@ -19,3 +19,16 @@ if (!fs.existsSync(src)) {
 
 fs.cpSync(src, dest, { recursive: true, force: true });
 console.log(`sync-website: copied website → ${dest}`);
+
+// Files removed from the website that must not stay live on the server.
+// (The merge above never deletes, so retired files are removed here by name.)
+// api/contact.php was the old PHP form handler with weaker spam protection;
+// bots kept posting to it directly. The form now uses /portal/api/tour-request.
+const RETIRED = ["api/contact.php"];
+for (const rel of RETIRED) {
+  const file = path.join(dest, rel);
+  if (fs.existsSync(file)) {
+    fs.rmSync(file);
+    console.log(`sync-website: removed retired file ${rel}`);
+  }
+}

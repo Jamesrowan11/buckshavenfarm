@@ -31,3 +31,8 @@ RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
 # Never serve directory listings
 Options -Indexes
+
+# The old PHP contact form was retired (spam). Refuse it even if a stale copy remains.
+<Files "contact.php">
+  Require all denied
+</Files>

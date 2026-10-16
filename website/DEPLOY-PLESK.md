@@ -40,13 +40,19 @@ The `.htaccess` in this folder also force-redirects to HTTPS.
 
 ## 4. Make the contact form send email
 
-The form posts to `api/contact.php`, which uses PHP `mail()`.
+The form posts to the portal app at `/portal/api/tour-request`
+(`portal/app/api/tour-request/route.ts`), which sends mail with the server's
+`sendmail`. The old `api/contact.php` handler was removed because bots were
+abusing it. Spam protection (signed form token, honeypot, per-IP and
+site-wide limits, link filtering, duplicate suppression) is in
+`portal/lib/formGuard.ts`; blocked attempts are logged as
+`[tour-request] blocked: …` in the Node.js app log.
 
 1. Plesk → **Mail → Mail Settings** → make sure mail service is ON for the domain.
 2. Create the mailbox `noreply@buckshavenfarm.com` (Plesk → Mail → Create
-   Email Address), or edit `FROM_EMAIL` at the top of `api/contact.php`.
+   Email Address), or edit `FROM_EMAIL` at the top of `route.ts`.
 3. Requests are delivered to `james@northvaleunified.com` — change `TO_EMAIL`
-   in `api/contact.php` if you'd rather use a different inbox.
+   in `route.ts` if you'd rather use a different inbox.
 4. AWS blocks outbound port 25 by default. Either:
    - Request the port-25 restriction removal from AWS (form in the AWS docs), or
    - Better: relay through **Amazon SES** or any SMTP relay — Plesk →
@@ -55,8 +61,9 @@ The form posts to `api/contact.php`, which uses PHP `mail()`.
 5. To improve deliverability, add **SPF/DKIM** for the domain
    (Plesk → Mail → the domain → DKIM on; SPF record in DNS).
 
-Test: submit the form on the live site; you should get the request email and
-the visitor gets a branded auto-confirmation.
+Test: open the live site, wait a few seconds, then submit the form; you should
+get the request email. (The visitor auto-reply is off by default because bots
+abuse auto-replies; set `SEND_AUTO_REPLY = true` in `route.ts` to turn it on.)
 
 ## 5. Drop in the aerial footage (Monday)
 
