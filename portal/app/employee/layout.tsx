@@ -28,6 +28,8 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
         <div className="sidebar__foot">
           {session.name}
           <br />
+          <Link href="/employee/account" style={{ color: "#c9a35c" }}>My account</Link>
+          {" · "}
           <a href="/portal/logout" style={{ color: "#c9a35c" }}>Sign out</a>
         </div>
       </aside>
@@ -38,6 +40,7 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
         <NavLink href="/employee/feeding" className=""><span>🌾</span>Feed</NavLink>
         <NavLink href="/employee/schedule" className=""><span>📅</span>Shifts</NavLink>
         <NavLink href="/employee/clock" className=""><span>⏱</span>Clock</NavLink>
+        <NavLink href="/employee/account" className=""><span>👤</span>Me</NavLink>
       </nav>
     </div>
   );

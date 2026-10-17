@@ -46,6 +46,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="sidebar__foot">
           {session.name}
           <br />
+          <Link href="/admin/account" style={{ color: "#c9a35c" }}>My account</Link>
+          {" · "}
           <a href="/portal/logout" style={{ color: "#c9a35c" }}>Sign out</a>
         </div>
       </aside>
@@ -56,6 +58,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <NavLink href="/admin/tasks" className=""><span>☑</span>Tasks</NavLink>
         <NavLink href="/admin/schedule" className=""><span>📅</span>Schedule</NavLink>
         <NavLink href="/admin/users" className=""><span>👥</span>Users</NavLink>
+        <NavLink href="/admin/account" className=""><span>👤</span>Me</NavLink>
       </nav>
     </div>
   );

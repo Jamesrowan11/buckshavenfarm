@@ -1,7 +1,9 @@
 import { revalidatePath } from "next/cache";
-import bcrypt from "bcryptjs";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { changeOwnPassword, passwordResultFrom } from "@/lib/password";
+import ChangePasswordForm from "@/components/ChangePasswordForm";
 
 async function updateMe(formData: FormData) {
   "use server";
@@ -19,16 +21,13 @@ async function updateMe(formData: FormData) {
 async function changePassword(formData: FormData) {
   "use server";
   const session = await requireRole("BOARDER", "ADMIN");
-  const current = String(formData.get("current") || "");
-  const next = String(formData.get("next") || "");
-  if (next.length < 8) return;
-  const user = await db.user.findUnique({ where: { id: session.uid } });
-  if (!user || !(await bcrypt.compare(current, user.passwordHash))) return;
-  await db.user.update({
-    where: { id: session.uid },
-    data: { passwordHash: await bcrypt.hash(next, 12) },
-  });
-  revalidatePath("/boarder/account");
+  const result = await changeOwnPassword(
+    session.uid,
+    String(formData.get("current") || ""),
+    String(formData.get("next") || ""),
+    String(formData.get("confirm") || "")
+  );
+  redirect(`/boarder/account?pw=${result}`);
 }
 
 async function addContact(formData: FormData) {
@@ -60,8 +59,13 @@ async function removeContact(contactId: string) {
   revalidatePath("/boarder/account");
 }
 
-export default async function BoarderAccount() {
+export default async function BoarderAccount({
+  searchParams,
+}: {
+  searchParams: Promise<{ pw?: string }>;
+}) {
   const session = await requireRole("BOARDER", "ADMIN");
+  const { pw } = await searchParams;
   const me = await db.user.findUnique({
     where: { id: session.uid },
     include: { emergencyContacts: { orderBy: { priority: "asc" } } },
@@ -87,14 +91,7 @@ export default async function BoarderAccount() {
               <button className="btn btn--gold">Save</button>
             </form>
           </div>
-          <div className="card">
-            <h2>Change password</h2>
-            <form action={changePassword}>
-              <label className="fld">Current password<input type="password" name="current" required /></label>
-              <label className="fld">New password (min 8)<input type="password" name="next" minLength={8} required /></label>
-              <button className="btn">Change</button>
-            </form>
-          </div>
+          <ChangePasswordForm action={changePassword} result={passwordResultFrom(pw)} />
         </div>
 
         <div className="card">
