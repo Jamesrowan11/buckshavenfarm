@@ -1,5 +1,8 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/current";
+import { createTask as create, deleteTask as remove, listAllTasks, setTaskDone } from "@/lib/services/tasks";
+import { listUserOptions } from "@/lib/services/users";
+import { field } from "@/lib/validation";
 import EmptyState from "@/components/EmptyState";
 import PriorityBadge from "@/components/PriorityBadge";
 
@@ -7,43 +10,35 @@ export const dynamic = "force-dynamic";
 
 async function createTask(formData: FormData) {
   "use server";
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const title = String(formData.get("title") ?? "").trim();
-  if (!title) return;
-  await supabase.from("tasks").insert({
-    title,
-    notes: String(formData.get("notes") ?? "") || null,
-    assigned_to: (formData.get("assigned_to") as string) || null,
-    due_date: (formData.get("due_date") as string) || null,
-    priority: (formData.get("priority") as string) || "medium",
-    created_by: user?.id ?? null,
+  const actor = await requireAdmin();
+  if (!field(formData, "title")) return;
+  await create(actor, {
+    title: field(formData, "title"),
+    notes: field(formData, "notes"),
+    assigned_to: field(formData, "assigned_to"),
+    due_date: field(formData, "due_date"),
+    priority: field(formData, "priority"),
   });
   revalidatePath("/admin/tasks");
 }
 
 async function toggleDone(id: string, done: boolean) {
   "use server";
-  const supabase = createClient();
-  await supabase.from("tasks").update({ done: !done }).eq("id", id);
+  const actor = await requireAdmin();
+  await setTaskDone(actor, id, !done);
   revalidatePath("/admin/tasks");
 }
 
 async function deleteTask(id: string) {
   "use server";
-  const supabase = createClient();
-  await supabase.from("tasks").delete().eq("id", id);
+  const actor = await requireAdmin();
+  await remove(actor, id);
   revalidatePath("/admin/tasks");
 }
 
 export default async function AdminTasksPage() {
-  const supabase = createClient();
-  const [{ data: tasks }, { data: employees }] = await Promise.all([
-    supabase.from("tasks").select("*, profiles:assigned_to(name)").order("done").order("due_date"),
-    supabase.from("profiles").select("id, name").order("name"),
-  ]);
+  const actor = await requireAdmin();
+  const [tasks, employees] = await Promise.all([listAllTasks(actor), listUserOptions(actor)]);
 
   return (
     <div className="space-y-6">
@@ -64,7 +59,7 @@ export default async function AdminTasksPage() {
             <label className="label">Assign to</label>
             <select name="assigned_to" className="input">
               <option value="">— All / unassigned —</option>
-              {employees?.map((e: any) => (
+              {employees.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.name}
                 </option>
@@ -88,10 +83,10 @@ export default async function AdminTasksPage() {
       </form>
 
       <section className="space-y-2">
-        {(tasks?.length ?? 0) === 0 ? (
+        {tasks.length === 0 ? (
           <EmptyState title="No tasks yet" hint="Create a task above." />
         ) : (
-          tasks!.map((t: any) => (
+          tasks.map((t) => (
             <div key={t.id} className={`card flex items-start gap-3 ${t.done ? "opacity-60" : ""}`}>
               <form action={toggleDone.bind(null, t.id, t.done)}>
                 <button
@@ -111,7 +106,7 @@ export default async function AdminTasksPage() {
                 </div>
                 {t.notes && <div className="text-sm text-stone-600 mt-1 whitespace-pre-wrap">{t.notes}</div>}
                 <div className="text-xs text-stone-500 mt-1">
-                  {t.profiles?.name ? `Assigned: ${t.profiles.name}` : "Unassigned"}
+                  {t.assignee_name ? `Assigned: ${t.assignee_name}` : "Unassigned"}
                 </div>
               </div>
               <form action={deleteTask.bind(null, t.id)}>

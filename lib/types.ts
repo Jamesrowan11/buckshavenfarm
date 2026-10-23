@@ -1,12 +1,21 @@
 export type Role = "admin" | "employee";
 
+// All timestamps (created_at) are ISO-8601 strings in UTC. Calendar fields
+// (date, due_date, week_start, …) are 'YYYY-MM-DD'; times are 'HH:MM:SS'.
+
+export type Barn = "log-barn" | "arena-barn";
+
 export type Profile = {
   id: string;
   name: string;
-  email: string | null;
+  email: string;
   role: Role;
   created_at: string;
 };
+
+export type ProfileListItem = Profile & { has_password: boolean };
+
+export type UserOption = { id: string; name: string };
 
 export type Task = {
   id: string;
@@ -46,6 +55,7 @@ export type Horse = {
   name: string;
   notes: string | null;
   active: boolean;
+  barn: Barn | null;
   created_at: string;
 };
 
@@ -57,8 +67,11 @@ export type FeedingChart = {
   supplements: string | null;
   special_notes: string | null;
   responsible_employee: string | null;
+  barn: Barn | null;
   created_at: string;
 };
+
+export type FeedingChartWithResponsible = FeedingChart & { responsible_name: string | null };
 
 export type FeedingLog = {
   id: string;
@@ -103,3 +116,11 @@ export type Availability = {
   notes: string | null;
   created_at: string;
 };
+
+// Rows joined with the related user's display name.
+export type TaskWithAssignee = Task & { assignee_name: string | null };
+export type ShiftWithEmployee = Shift & { employee_name: string | null };
+export type TimeOffWithEmployee = TimeOffRequest & { employee_name: string | null };
+export type AvailabilityWithEmployee = Availability & { employee_name: string | null };
+export type AnnouncementWithAuthor = Announcement & { author_name: string | null };
+export type AdminNoteWithAuthor = AdminNote & { author_name: string | null };

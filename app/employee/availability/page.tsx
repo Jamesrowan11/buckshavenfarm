@@ -1,53 +1,28 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/current";
+import { DAYS, listMyAvailability, submitAvailability as submit } from "@/lib/services/availability";
+import { field } from "@/lib/validation";
+import { nextMonday } from "@/lib/time";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-function nextMonday() {
-  const d = new Date();
-  const day = d.getDay();
-  d.setDate(d.getDate() - ((day + 6) % 7) + 7);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
-}
-
 async function submitAvailability(formData: FormData) {
   "use server";
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const week_start = String(formData.get("week_start"));
-  const available_days: Record<string, { start?: string; end?: string }> = {};
+  const actor = await requireUser();
+  const days: Record<string, { start?: string; end?: string }> = {};
   for (const day of DAYS) {
-    const start = String(formData.get(`${day}_start`) ?? "");
-    const end = String(formData.get(`${day}_end`) ?? "");
-    if (start || end) available_days[day] = { start: start || undefined, end: end || undefined };
+    const start = field(formData, `${day}_start`);
+    const end = field(formData, `${day}_end`);
+    if (start || end) days[day] = { start: start || undefined, end: end || undefined };
   }
-  const notes = String(formData.get("notes") ?? "") || null;
-  await supabase.from("availability").insert({
-    employee_id: user!.id,
-    week_start,
-    available_days,
-    notes,
-  });
+  await submit(actor, { week_start: field(formData, "week_start"), days, notes: field(formData, "notes") });
   revalidatePath("/employee/availability");
 }
 
 export default async function EmployeeAvailabilityPage() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: history } = await supabase
-    .from("availability")
-    .select("*")
-    .eq("employee_id", user!.id)
-    .order("week_start", { ascending: false })
-    .limit(8);
+  const actor = await requireUser();
+  const history = await listMyAvailability(actor, 8);
 
   return (
     <div className="space-y-4">
@@ -72,11 +47,11 @@ export default async function EmployeeAvailabilityPage() {
       </form>
 
       <h2 className="h2">Past submissions</h2>
-      {(history?.length ?? 0) === 0 ? (
+      {history.length === 0 ? (
         <EmptyState title="No submissions yet" />
       ) : (
         <ul className="space-y-2">
-          {history!.map((a: any) => (
+          {history.map((a) => (
             <li key={a.id} className="card text-sm">
               <div className="font-medium">Week of {a.week_start}</div>
               <pre className="text-xs text-stone-600 mt-1 whitespace-pre-wrap break-words bg-stone-50 rounded p-2">

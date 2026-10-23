@@ -1,38 +1,30 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/current";
+import { createAnnouncement as create, deleteAnnouncement as remove, listAnnouncements } from "@/lib/services/announcements";
+import { field } from "@/lib/validation";
+import { formatDateTime } from "@/lib/time";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
 async function createAnnouncement(formData: FormData) {
   "use server";
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const title = String(formData.get("title") ?? "").trim();
-  if (!title) return;
-  await supabase.from("announcements").insert({
-    title,
-    body: (formData.get("body") as string) || null,
-    created_by: user?.id ?? null,
-  });
+  const actor = await requireAdmin();
+  if (!field(formData, "title")) return;
+  await create(actor, { title: field(formData, "title"), body: field(formData, "body") });
   revalidatePath("/admin/announcements");
 }
 
 async function deleteAnnouncement(id: string) {
   "use server";
-  const supabase = createClient();
-  await supabase.from("announcements").delete().eq("id", id);
+  const actor = await requireAdmin();
+  await remove(actor, id);
   revalidatePath("/admin/announcements");
 }
 
 export default async function AdminAnnouncementsPage() {
-  const supabase = createClient();
-  const { data } = await supabase
-    .from("announcements")
-    .select("*, profiles:created_by(name)")
-    .order("created_at", { ascending: false });
+  const actor = await requireAdmin();
+  const data = await listAnnouncements(actor);
 
   return (
     <div className="space-y-6">
@@ -45,17 +37,17 @@ export default async function AdminAnnouncementsPage() {
         <button className="btn-primary">Post</button>
       </form>
 
-      {(data?.length ?? 0) === 0 ? (
+      {data.length === 0 ? (
         <EmptyState title="No announcements yet" />
       ) : (
         <ul className="space-y-3">
-          {data!.map((a: any) => (
+          {data.map((a) => (
             <li key={a.id} className="card">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="font-semibold">{a.title}</div>
                   <div className="text-xs text-stone-500">
-                    {new Date(a.created_at).toLocaleString()} · {a.profiles?.name ?? "—"}
+                    {formatDateTime(a.created_at)} · {a.author_name ?? "—"}
                   </div>
                 </div>
                 <form action={deleteAnnouncement.bind(null, a.id)}>

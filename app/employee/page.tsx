@@ -1,39 +1,36 @@
 import Link from "next/link";
-import { createClient, getSessionAndProfile } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/current";
+import { listMyOpenTasks } from "@/lib/services/tasks";
+import { listMyShiftsBetween } from "@/lib/services/shifts";
+import { listAnnouncements } from "@/lib/services/announcements";
+import { formatInstantDate, hhmm, todayLocal } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
 export default async function EmployeeHome() {
-  const supabase = createClient();
-  const { user, profile } = await getSessionAndProfile();
-  const today = new Date().toISOString().slice(0, 10);
+  const actor = await requireUser();
+  const today = todayLocal();
 
-  const [{ data: myTasks }, { data: shiftToday }, { data: ann }] = await Promise.all([
-    supabase
-      .from("tasks")
-      .select("*")
-      .eq("assigned_to", user!.id)
-      .eq("done", false)
-      .order("due_date", { ascending: true })
-      .limit(5),
-    supabase.from("shifts").select("*").eq("employee_id", user!.id).eq("date", today),
-    supabase.from("announcements").select("*").order("created_at", { ascending: false }).limit(3),
+  const [myTasks, shiftToday, ann] = await Promise.all([
+    listMyOpenTasks(actor, 5),
+    listMyShiftsBetween(actor, today, today),
+    listAnnouncements(actor, 3),
   ]);
 
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="h1">Hi {profile?.name?.split(" ")[0] ?? "there"}</h1>
-        <p className="text-stone-600 text-sm">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
+        <h1 className="h1">Hi {actor.name.split(" ")[0] || "there"}</h1>
+        <p className="text-stone-600 text-sm">{formatInstantDate(new Date(), { weekday: "long", month: "long", day: "numeric" })}</p>
       </div>
 
       <section className="card">
         <h2 className="h2 mb-2">Today&apos;s shift</h2>
-        {shiftToday && shiftToday.length > 0 ? (
+        {shiftToday.length > 0 ? (
           <ul className="space-y-1">
-            {shiftToday.map((s: any) => (
+            {shiftToday.map((s) => (
               <li key={s.id} className="text-stone-700">
-                {s.start_time?.slice(0, 5)} – {s.end_time?.slice(0, 5)}
+                {hhmm(s.start_time)} – {hhmm(s.end_time)}
                 {s.notes ? ` · ${s.notes}` : ""}
               </li>
             ))}
@@ -50,9 +47,9 @@ export default async function EmployeeHome() {
             All →
           </Link>
         </div>
-        {myTasks && myTasks.length > 0 ? (
+        {myTasks.length > 0 ? (
           <ul className="space-y-2">
-            {myTasks.map((t: any) => (
+            {myTasks.map((t) => (
               <li key={t.id} className="text-stone-700">
                 • {t.title}
                 {t.due_date && <span className="text-stone-500 text-xs ml-2">due {t.due_date}</span>}
@@ -71,9 +68,9 @@ export default async function EmployeeHome() {
             All →
           </Link>
         </div>
-        {ann && ann.length > 0 ? (
+        {ann.length > 0 ? (
           <ul className="space-y-3">
-            {ann.map((a: any) => (
+            {ann.map((a) => (
               <li key={a.id}>
                 <div className="font-medium">{a.title}</div>
                 <div className="text-sm text-stone-600 line-clamp-2">{a.body}</div>

@@ -1,5 +1,7 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/current";
+import { addTaskComment, listTasksForEmployee, setTaskDone } from "@/lib/services/tasks";
+import { field } from "@/lib/validation";
 import EmptyState from "@/components/EmptyState";
 import PriorityBadge from "@/components/PriorityBadge";
 
@@ -7,42 +9,31 @@ export const dynamic = "force-dynamic";
 
 async function toggleDone(id: string, done: boolean) {
   "use server";
-  const supabase = createClient();
-  await supabase.from("tasks").update({ done: !done }).eq("id", id);
+  const actor = await requireUser();
+  await setTaskDone(actor, id, !done);
   revalidatePath("/employee/tasks");
 }
 
-async function addComment(id: string, current: string | null, formData: FormData) {
+async function addComment(id: string, formData: FormData) {
   "use server";
-  const supabase = createClient();
-  const comment = String(formData.get("comment") ?? "").trim();
-  if (!comment) return;
-  const stamp = new Date().toLocaleString();
-  const next = `${current ?? ""}${current ? "\n" : ""}[${stamp}] ${comment}`;
-  await supabase.from("tasks").update({ notes: next }).eq("id", id);
+  const actor = await requireUser();
+  // The comment is appended to the current notes on the server, inside a
+  // transaction, so concurrent comments never overwrite each other.
+  await addTaskComment(actor, id, field(formData, "comment"));
   revalidatePath("/employee/tasks");
 }
 
 export default async function EmployeeTasksPage() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: tasks } = await supabase
-    .from("tasks")
-    .select("*")
-    .or(`assigned_to.eq.${user!.id},assigned_to.is.null`)
-    .order("done")
-    .order("due_date");
+  const actor = await requireUser();
+  const tasks = await listTasksForEmployee(actor);
 
   return (
     <div className="space-y-4">
       <h1 className="h1">My tasks</h1>
-      {(tasks?.length ?? 0) === 0 ? (
+      {tasks.length === 0 ? (
         <EmptyState title="Nothing assigned" />
       ) : (
-        tasks!.map((t: any) => (
+        tasks.map((t) => (
           <div key={t.id} className={`card space-y-2 ${t.done ? "opacity-60" : ""}`}>
             <div className="flex items-start gap-3">
               <form action={toggleDone.bind(null, t.id, t.done)}>
@@ -64,7 +55,7 @@ export default async function EmployeeTasksPage() {
                 {t.notes && <div className="text-sm text-stone-700 mt-1 whitespace-pre-wrap">{t.notes}</div>}
               </div>
             </div>
-            <form action={addComment.bind(null, t.id, t.notes)} className="flex gap-2">
+            <form action={addComment.bind(null, t.id)} className="flex gap-2">
               <input name="comment" placeholder="Add a comment..." className="input !py-1" />
               <button className="btn-secondary !py-1 !px-3 text-sm">Post</button>
             </form>

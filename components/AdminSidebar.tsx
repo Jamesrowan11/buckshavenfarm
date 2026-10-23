@@ -50,6 +50,9 @@ export default function AdminSidebar({ name }: { name: string }) {
         </nav>
         <div className="p-3 border-t border-farm-700">
           <div className="text-xs opacity-80 mb-2 truncate">{name}</div>
+          <Link href="/employee/account" className="block text-xs opacity-80 hover:opacity-100 mb-2">
+            Change password
+          </Link>
           <SignOutButton className="w-full" />
         </div>
       </aside>

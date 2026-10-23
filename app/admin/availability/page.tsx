@@ -1,32 +1,23 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/current";
+import { listAllTimeOff, reviewTimeOff } from "@/lib/services/timeOff";
+import { listRecentAvailability } from "@/lib/services/availability";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
 async function reviewRequest(id: string, status: "approved" | "denied") {
   "use server";
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  await supabase.from("time_off_requests").update({ status, reviewed_by: user?.id ?? null }).eq("id", id);
+  const actor = await requireAdmin();
+  await reviewTimeOff(actor, id, status);
   revalidatePath("/admin/availability");
 }
 
 export default async function AdminAvailabilityPage() {
-  const supabase = createClient();
-  const [{ data: requests }, { data: availability }] = await Promise.all([
-    supabase
-      .from("time_off_requests")
-      .select("*, profiles:employee_id(name)")
-      .order("status")
-      .order("start_date"),
-    supabase
-      .from("availability")
-      .select("*, profiles:employee_id(name)")
-      .order("week_start", { ascending: false })
-      .limit(20),
+  const actor = await requireAdmin();
+  const [requests, availability] = await Promise.all([
+    listAllTimeOff(actor),
+    listRecentAvailability(actor, 20),
   ]);
 
   return (
@@ -35,14 +26,14 @@ export default async function AdminAvailabilityPage() {
 
       <section className="card">
         <h2 className="h2 mb-3">Time-off requests</h2>
-        {(requests?.length ?? 0) === 0 ? (
+        {requests.length === 0 ? (
           <EmptyState title="No requests yet" />
         ) : (
           <ul className="divide-y divide-stone-100">
-            {requests!.map((r: any) => (
+            {requests.map((r) => (
               <li key={r.id} className="py-3 flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <div className="font-medium">{r.profiles?.name ?? "—"}</div>
+                  <div className="font-medium">{r.employee_name ?? "—"}</div>
                   <div className="text-sm text-stone-600">
                     {r.start_date} → {r.end_date}
                     {r.reason ? ` · ${r.reason}` : ""}
@@ -69,14 +60,14 @@ export default async function AdminAvailabilityPage() {
 
       <section className="card">
         <h2 className="h2 mb-3">Submitted availability</h2>
-        {(availability?.length ?? 0) === 0 ? (
+        {availability.length === 0 ? (
           <EmptyState title="Nothing submitted yet" />
         ) : (
           <ul className="divide-y divide-stone-100">
-            {availability!.map((a: any) => (
+            {availability.map((a) => (
               <li key={a.id} className="py-3">
                 <div className="font-medium">
-                  {a.profiles?.name ?? "—"}{" "}
+                  {a.employee_name ?? "—"}{" "}
                   <span className="text-xs text-stone-500 font-normal">week of {a.week_start}</span>
                 </div>
                 <pre className="text-xs text-stone-600 mt-1 whitespace-pre-wrap break-words bg-stone-50 rounded p-2">

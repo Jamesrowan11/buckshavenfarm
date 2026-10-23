@@ -1,33 +1,22 @@
 import { revalidatePath } from "next/cache";
-import { createClient, getSessionAndProfile } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/current";
+import { listMyClockLogs, recordClock } from "@/lib/services/clock";
+import { formatDateTime } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
 async function clockAction(action: "in" | "out") {
   "use server";
-  const supabase = createClient();
-  const { user, profile } = await getSessionAndProfile();
-  if (!user) return;
-  await supabase.from("clock_logs").insert({
-    user_id: user.id,
-    user_name: profile?.name ?? user.email ?? "",
-    action,
-  });
+  const actor = await requireUser();
+  await recordClock(actor, action);
   revalidatePath("/employee/clock");
 }
 
 export default async function EmployeeClockPage() {
-  const supabase = createClient();
-  const { user, profile } = await getSessionAndProfile();
+  const actor = await requireUser();
+  const history = await listMyClockLogs(actor, 20);
 
-  const { data: history } = await supabase
-    .from("clock_logs")
-    .select("*")
-    .eq("user_id", user!.id)
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  const last = history?.[0];
+  const last = history[0];
   const isClockedIn = last?.action === "in";
 
   return (
@@ -40,7 +29,7 @@ export default async function EmployeeClockPage() {
           {isClockedIn ? "Clocked in" : "Clocked out"}
         </div>
         {last && (
-          <div className="text-xs text-stone-500 mt-1">since {new Date(last.created_at).toLocaleString()}</div>
+          <div className="text-xs text-stone-500 mt-1">since {formatDateTime(last.created_at)}</div>
         )}
         <div className="mt-5 flex justify-center gap-3">
           {isClockedIn ? (
@@ -53,19 +42,19 @@ export default async function EmployeeClockPage() {
             </form>
           )}
         </div>
-        <div className="text-xs text-stone-500 mt-3">Signed in as {profile?.name}</div>
+        <div className="text-xs text-stone-500 mt-3">Signed in as {actor.name}</div>
       </section>
 
       <section className="card">
         <h2 className="h2 mb-2">Recent activity</h2>
-        {(history?.length ?? 0) === 0 ? (
+        {history.length === 0 ? (
           <p className="text-stone-500 text-sm">No activity yet.</p>
         ) : (
           <ul className="divide-y divide-stone-100 text-sm">
-            {history!.map((c: any) => (
+            {history.map((c) => (
               <li key={c.id} className="py-2 flex justify-between">
                 <span>{c.action === "in" ? "Clocked in" : "Clocked out"}</span>
-                <span className="text-stone-500">{new Date(c.created_at).toLocaleString()}</span>
+                <span className="text-stone-500">{formatDateTime(c.created_at)}</span>
               </li>
             ))}
           </ul>

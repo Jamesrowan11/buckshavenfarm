@@ -1,62 +1,44 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/current";
+import { createShift as create, deleteShift as remove, listShiftsBetween } from "@/lib/services/shifts";
+import { listUserOptions } from "@/lib/services/users";
+import { field } from "@/lib/validation";
+import { formatCalendarDate, hhmm, weekDates } from "@/lib/time";
+import type { ShiftWithEmployee } from "@/lib/types";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
-function getWeek(offset = 0) {
-  const now = new Date();
-  const day = now.getDay(); // 0 Sun
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((day + 6) % 7) + offset * 7);
-  monday.setHours(0, 0, 0, 0);
-  const days: Date[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    days.push(d);
-  }
-  return days;
-}
-
 async function createShift(formData: FormData) {
   "use server";
-  const supabase = createClient();
-  await supabase.from("shifts").insert({
-    employee_id: formData.get("employee_id") as string,
-    date: formData.get("date") as string,
-    start_time: formData.get("start_time") as string,
-    end_time: formData.get("end_time") as string,
-    notes: (formData.get("notes") as string) || null,
+  const actor = await requireAdmin();
+  await create(actor, {
+    employee_id: field(formData, "employee_id"),
+    date: field(formData, "date"),
+    start_time: field(formData, "start_time"),
+    end_time: field(formData, "end_time"),
+    notes: field(formData, "notes"),
   });
   revalidatePath("/admin/schedule");
 }
 
 async function deleteShift(id: string) {
   "use server";
-  const supabase = createClient();
-  await supabase.from("shifts").delete().eq("id", id);
+  const actor = await requireAdmin();
+  await remove(actor, id);
   revalidatePath("/admin/schedule");
 }
 
 export default async function AdminSchedulePage() {
-  const supabase = createClient();
-  const week = getWeek(0);
-  const start = week[0].toISOString().slice(0, 10);
-  const end = week[6].toISOString().slice(0, 10);
-  const [{ data: shifts }, { data: employees }] = await Promise.all([
-    supabase
-      .from("shifts")
-      .select("*, profiles:employee_id(name)")
-      .gte("date", start)
-      .lte("date", end)
-      .order("date")
-      .order("start_time"),
-    supabase.from("profiles").select("id, name").eq("role", "employee").order("name"),
+  const actor = await requireAdmin();
+  const week = weekDates();
+  const [shifts, employees] = await Promise.all([
+    listShiftsBetween(actor, week[0], week[6]),
+    listUserOptions(actor, { role: "employee" }),
   ]);
 
-  const byDate = new Map<string, any[]>();
-  (shifts ?? []).forEach((s: any) => {
+  const byDate = new Map<string, ShiftWithEmployee[]>();
+  shifts.forEach((s) => {
     const arr = byDate.get(s.date) ?? [];
     arr.push(s);
     byDate.set(s.date, arr);
@@ -73,7 +55,7 @@ export default async function AdminSchedulePage() {
             <label className="label">Employee</label>
             <select name="employee_id" required className="input">
               <option value="">— select —</option>
-              {employees?.map((e: any) => (
+              {employees.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.name}
                 </option>
@@ -101,14 +83,13 @@ export default async function AdminSchedulePage() {
       </form>
 
       <section className="space-y-3">
-        {week.map((d) => {
-          const key = d.toISOString().slice(0, 10);
+        {week.map((key) => {
           const list = byDate.get(key) ?? [];
           return (
             <div key={key} className="card">
               <div className="flex items-center justify-between mb-2">
                 <div className="font-semibold">
-                  {d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
+                  {formatCalendarDate(key, { weekday: "long", month: "short", day: "numeric" })}
                 </div>
                 <div className="text-xs text-stone-500">{key}</div>
               </div>
@@ -116,12 +97,12 @@ export default async function AdminSchedulePage() {
                 <div className="text-sm text-stone-500">No shifts.</div>
               ) : (
                 <ul className="divide-y divide-stone-100">
-                  {list.map((s: any) => (
+                  {list.map((s) => (
                     <li key={s.id} className="py-2 flex items-center justify-between gap-2">
                       <div>
-                        <div className="font-medium">{s.profiles?.name ?? "—"}</div>
+                        <div className="font-medium">{s.employee_name ?? "—"}</div>
                         <div className="text-sm text-stone-600">
-                          {s.start_time?.slice(0, 5)} – {s.end_time?.slice(0, 5)}
+                          {hhmm(s.start_time)} – {hhmm(s.end_time)}
                           {s.notes ? ` · ${s.notes}` : ""}
                         </div>
                       </div>
@@ -135,7 +116,7 @@ export default async function AdminSchedulePage() {
             </div>
           );
         })}
-        {(shifts?.length ?? 0) === 0 && <EmptyState title="No shifts this week" hint="Add one above." />}
+        {shifts.length === 0 && <EmptyState title="No shifts this week" hint="Add one above." />}
       </section>
     </div>
   );
