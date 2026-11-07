@@ -34,54 +34,44 @@ npm run dev
 
 Open <http://localhost:3000>, sign in as any of the four users.
 
-## Step 4 — deploy to Cloudflare Pages
+## Step 4 — deploy to DigitalOcean
 
-This project ships with `@cloudflare/next-on-pages@1.13.15` (the last version
-that supports Next.js 14.2.x). Every server-rendered route is opted into the
-Edge runtime via `export const runtime = "edge"`.
+The app runs on a DigitalOcean droplet the same way as rowancopy.com: Node.js
+(`next start`) behind **Caddy** with automatic HTTPS, settings in
+`/etc/buckshavenfarm/env` (outside the repository), and **automatic deploys**:
+every 3 minutes the server checks GitHub and rebuilds when `main` has new
+commits. A failed build rolls back to the last commit that built. All data
+stays in Supabase.
 
-### Cloudflare Pages dashboard settings
+### New droplet (no SSH needed)
 
-In the Pages project → **Settings → Builds & deployments**:
+1. Create an Ubuntu 24.04 droplet (2 GB RAM or more), or reuse one running another app.
+2. In **User data**, paste `infra/digitalocean/user-data.sh` with `APP_DOMAIN` and
+   `SUPABASE_ANON_KEY` filled in (Supabase → Project Settings → API → the
+   **anon public** key; never the `service_role` key).
+3. Point the domain's **A record** at the droplet. HTTPS starts once DNS points there.
+4. In Supabase → **Authentication → URL configuration**, add `https://<your domain>`
+   to **Site URL** and **Redirect URLs**.
 
-| Setting                | Value                                       |
-| ---------------------- | ------------------------------------------- |
-| Build command          | `npx @cloudflare/next-on-pages@1.13.15`     |
-| Build output directory | `.vercel/output/static`                     |
-| Root directory         | (leave blank)                               |
-| Node version           | env var `NODE_VERSION` = `20.18.1`          |
+Or, on an existing droplet:
+`sudo APP_DOMAIN=buckshavenfarm.com SUPABASE_ANON_KEY=eyJ... bash infra/digitalocean/setup.sh`
 
-In **Settings → Functions → Compatibility flags**:
-- Add `nodejs_compat` (both Production and Preview).
+The app listens on `127.0.0.1:3001`, so it can share a droplet with other apps
+(each adds its own site file in `/etc/caddy/sites/`).
 
-In **Settings → Environment variables**:
-- `NEXT_PUBLIC_SUPABASE_URL` = `https://xtvwxgqrzswsuzouztkt.supabase.co`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` = (value from `.env.local`)
+### Useful commands
 
-Bind both vars to **Production** and **Preview**, then trigger a redeploy.
+| What | Command |
+|---|---|
+| Deploy now | `sudo /usr/local/sbin/buckshavenfarm-deploy --force` |
+| Deploy log | `journalctl -u buckshavenfarm-deploy -n 100` |
+| App log | `journalctl -u buckshavenfarm -n 100` |
+| Change settings | edit `/etc/buckshavenfarm/env`, then deploy with `--force` (the Supabase values are built into the app) |
 
-### Local Cloudflare-style build (Linux / macOS / WSL only)
+### Cloudflare (older option)
 
-The `next-on-pages` CLI shells out via bash and isn't reliable on raw Windows.
-On Linux/macOS/WSL:
-
-```bash
-npm run pages:build         # produces .vercel/output/static
-npm run pages:preview       # serve locally with wrangler
-npm run pages:deploy        # direct wrangler deploy (requires wrangler login)
-```
-
-### Post-deploy
-
-Add the Cloudflare Pages URL (e.g. `https://buckshavenfarm.pages.dev`) to the
-Supabase **Authentication → URL configuration** Site URL + Redirect URL lists.
-
-### Future: switch to OpenNext (optional)
-
-`@cloudflare/next-on-pages` was deprecated in favor of
-[OpenNext for Cloudflare](https://opennext.js.org/cloudflare). The OpenNext
-adapter supports the Node.js runtime, so a future migration could remove the
-`export const runtime = "edge"` lines and stop relying on `next-on-pages`.
+The Cloudflare Workers build still works: `npm run cf:build`, `npm run cf:deploy`
+(see `wrangler.toml` and `open-next.config.ts`).
 
 ## Project layout
 
