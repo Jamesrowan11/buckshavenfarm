@@ -54,7 +54,7 @@ build() {
   export NEXT_PUBLIC_SUPABASE_ANON_KEY="${NEXT_PUBLIC_SUPABASE_ANON_KEY:-$(conf NEXT_PUBLIC_SUPABASE_ANON_KEY)}" &&
   # The Supabase key is built into the app, so there's nothing useful to build without it.
   { [ -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] || { log "no Supabase anon key yet (site.conf or /etc/$APP/env); not building"; false; }; } &&
-  as_app npm ci --no-audit --no-fund &&
+  as_app npm ci --include=dev --no-audit --no-fund &&
   as_app npm run build
 }
 
