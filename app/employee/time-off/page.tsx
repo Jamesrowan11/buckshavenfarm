@@ -1,16 +1,16 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/db/server";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
 async function requestTimeOff(formData: FormData) {
   "use server";
-  const supabase = createClient();
+  const db = createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
-  await supabase.from("time_off_requests").insert({
+  } = await db.auth.getUser();
+  await db.from("time_off_requests").insert({
     employee_id: user!.id,
     start_date: formData.get("start_date") as string,
     end_date: formData.get("end_date") as string,
@@ -20,11 +20,11 @@ async function requestTimeOff(formData: FormData) {
 }
 
 export default async function EmployeeTimeOffPage() {
-  const supabase = createClient();
+  const db = createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
-  const { data: list } = await supabase
+  } = await db.auth.getUser();
+  const { data: list } = await db
     .from("time_off_requests")
     .select("*")
     .eq("employee_id", user!.id)

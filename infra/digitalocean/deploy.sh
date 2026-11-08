@@ -44,17 +44,45 @@ target=$(as_app git rev-parse "origin/$BRANCH")
 current=$(cat $STATE 2>/dev/null || true)
 if [ "${1:-}" != "--force" ] && [ "$target" = "$current" ]; then exit 0; fi
 
-# A value from site.conf in the repo, used when the server's env file leaves it empty.
+# A value from site.conf in the repo.
 conf() { grep -E "^$1=" infra/digitalocean/site.conf 2>/dev/null | tail -1 | cut -d= -f2-; }
+
+# The app's own database and login secret. Created once (no Supabase), kept in
+# /etc/$APP/env. Also gives the app the setup-code hash from site.conf.
+ensure_database() {
+  local env=/etc/$APP/env
+  if ! grep -q '^DATABASE_URL=' "$env"; then
+    command -v mariadb >/dev/null || { DEBIAN_FRONTEND=noninteractive apt-get install -y -q mariadb-server >/dev/null && systemctl enable --now mariadb; }
+    local pass; pass=$(openssl rand -hex 24)
+    mariadb -e "CREATE DATABASE IF NOT EXISTS $APP CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      CREATE USER IF NOT EXISTS '$APP'@'localhost' IDENTIFIED BY '$pass';
+      CREATE USER IF NOT EXISTS '$APP'@'127.0.0.1' IDENTIFIED BY '$pass';
+      ALTER USER '$APP'@'localhost' IDENTIFIED BY '$pass'; ALTER USER '$APP'@'127.0.0.1' IDENTIFIED BY '$pass';
+      GRANT ALL PRIVILEGES ON $APP.* TO '$APP'@'localhost'; GRANT ALL PRIVILEGES ON $APP.* TO '$APP'@'127.0.0.1'; FLUSH PRIVILEGES;" || return 1
+    echo "DATABASE_URL=mysql://$APP:$pass@127.0.0.1:3306/$APP" >> "$env"
+    log "created the $APP database"
+  fi
+  grep -q '^AUTH_SECRET=' "$env" || echo "AUTH_SECRET=$(openssl rand -hex 32)" >> "$env"
+  # Old Supabase settings are no longer used.
+  sed -i '/^NEXT_PUBLIC_SUPABASE_/d;/^# Supabase/d' "$env"
+  # Settings from site.conf (non-secret), in their own file the service also reads.
+  umask 077
+  { echo "# From infra/digitalocean/site.conf; rewritten on every deploy."; echo "SETUP_CODE_SHA256=$(conf SETUP_CODE_SHA256)"; } > /etc/$APP/site.env
+  chown root:$APP /etc/$APP/site.env /etc/$APP/env && chmod 640 /etc/$APP/site.env /etc/$APP/env
+  umask 022
+  local unit=/etc/systemd/system/$APP.service
+  if [ -f "$unit" ] && ! grep -q "site.env" "$unit"; then
+    sed -i "s#^EnvironmentFile=.*#&\nEnvironmentFile=/etc/$APP/site.env#" "$unit"
+    systemctl daemon-reload
+  fi
+}
 
 build() {
   as_app git reset -q --hard "$1" &&
+  ensure_database &&
   load_env /etc/$APP/env &&
-  export NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL:-$(conf NEXT_PUBLIC_SUPABASE_URL)}" &&
-  export NEXT_PUBLIC_SUPABASE_ANON_KEY="${NEXT_PUBLIC_SUPABASE_ANON_KEY:-$(conf NEXT_PUBLIC_SUPABASE_ANON_KEY)}" &&
-  # The Supabase key is built into the app, so there's nothing useful to build without it.
-  { [ -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] || { log "no Supabase anon key yet (site.conf or /etc/$APP/env); not building"; false; }; } &&
   as_app npm ci --include=dev --no-audit --no-fund &&
+  as_app node scripts/migrate.mjs &&
   as_app npm run build
 }
 

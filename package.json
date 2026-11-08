@@ -7,20 +7,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "cf:build": "npx @opennextjs/cloudflare build",
-    "cf:preview": "npm run cf:build && npx wrangler dev",
-    "cf:deploy": "npm run cf:build && npx wrangler deploy"
+    "migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
-    "@opennextjs/cloudflare": "^1.19.9",
-    "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.45.4",
     "next": "^15.5.18",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "mysql2": "^3.11.5",
+    "bcryptjs": "^2.4.3",
+    "jose": "^5.9.6"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260511.1",
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
@@ -30,6 +27,6 @@
     "postcss": "^8.4.39",
     "tailwindcss": "^3.4.6",
     "typescript": "^5.5.3",
-    "wrangler": "^4.86.0"
+    "@types/bcryptjs": "^2.4.6"
   }
 }

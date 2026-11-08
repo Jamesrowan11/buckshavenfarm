@@ -1,63 +1,62 @@
 # Bucks Haven Farm
 
-Farm operations portal — Next.js 14 (App Router) + Supabase + Tailwind.
+Farm operations portal: Next.js (App Router) + Tailwind, with its own MariaDB
+database and built-in logins. No outside services: everything runs on the
+DigitalOcean apps server.
 
-## Step 1 — install Node.js
+## How it works
 
-This machine doesn't have Node yet. Install **Node.js 20 LTS** from <https://nodejs.org/en/download>.
-After installing, open a **new** PowerShell window so the PATH refreshes, then verify:
+- **Data:** MariaDB tables in `db/schema.sql`, created and updated on every deploy by
+  `scripts/migrate.mjs`.
+- **Permissions:** `lib/db/policies.ts` decides who may read and change each table
+  (employees see their own shifts and clock log, only admins manage horses, charts,
+  announcements, schedules and notes, and so on). Every query goes through
+  `lib/db/query.ts`, which applies those rules, so a page can't skip them.
+- **Logins:** `lib/auth.ts`. Passwords are bcrypt hashes; a signed, httpOnly cookie
+  keeps people signed in for 14 days. Changing a password signs that person out everywhere.
+- **Barn display** (`/barn-display`, `/barn-display/log-barn`, `/barn-display/arena-barn`):
+  public, read-only, refreshes every 15 seconds from `/api/barn-display`.
 
-```powershell
-node --version   # expect v20.x
-npm --version
-```
+## First sign-in
 
-## Step 2 — Supabase setup
+The four farm accounts are created automatically (James and Cynthia as admins,
+Theresa and Landen as employees). Each person opens **/setup**, enters their email,
+the **setup code** (from the owner) and a new password. The code only works for
+accounts that don't have a password yet; its SHA-256 hash is in
+`infra/digitalocean/site.conf`.
 
-1. Open the SQL editor at <https://supabase.com/dashboard/project/xtvwxgqrzswsuzouztkt/sql/new>
-2. Paste the contents of `supabase/schema.sql` and run it. This creates every table, RLS policy, and a trigger that auto-creates a profile row on user signup.
-3. In **Authentication → Users → Add user** create one user for each of the four people, using email + a temporary password (uncheck "auto-confirm" only if you want them to confirm by email):
-   - `james@northvaleunified.com`
-   - `cynthiarowan777@gmail.com`
-   - `theresarowan777@gmail.com`
-   - `landenrowan@gmail.com`
-   The trigger inserts a `profiles` row for each. The `update` blocks at the bottom of `schema.sql` then promote James + Cynthia to `admin` and fix display names. Re-run those two `update` statements after creating the users (the trigger uses lowercase emails, the seed expects lowercase — already matched).
-4. **Authentication → URL configuration** → add your Cloudflare Pages domain (and `http://localhost:3000` for dev) to the **Site URL** + **Redirect URLs** lists.
+After that, admins add people and reset passwords on **Admin → Employees**.
 
-## Step 3 — local dev
+## Local development
 
-```powershell
-cd C:\Users\Administrator\BucksHavenFarm
+```bash
 npm install
+# A local MariaDB/MySQL database:
+export DATABASE_URL=mysql://user:pass@127.0.0.1:3306/buckshavenfarm
+export AUTH_SECRET=$(openssl rand -hex 32)
+export SETUP_CODE_SHA256=$(printf %s 'LOCAL-CODE' | sha256sum | cut -d' ' -f1)
+npm run migrate
 npm run dev
 ```
 
-Open <http://localhost:3000>, sign in as any of the four users.
+Open <http://localhost:3000/setup> and use `LOCAL-CODE`.
 
-## Step 4 — deploy to DigitalOcean
+## Deploying (DigitalOcean)
 
-The app runs on a DigitalOcean droplet the same way as rowancopy.com: Node.js
-(`next start`) behind **Caddy** with automatic HTTPS, settings in
-`/etc/buckshavenfarm/env` (outside the repository), and **automatic deploys**:
-every 3 minutes the server checks GitHub and rebuilds when `main` has new
-commits. A failed build rolls back to the last commit that built. All data
-stays in Supabase.
+The app runs on the same apps server as RowanHVAC, the same way as rowancopy.com:
+Node.js (`next start` on 127.0.0.1:3001) behind **Caddy** with automatic HTTPS,
+settings in `/etc/buckshavenfarm/env` (outside the repository), and **automatic
+deploys**: every 3 minutes the server checks GitHub and, when `main` has new
+commits, creates the database if needed, migrates, rebuilds and restarts. A failed
+build rolls back to the last commit that built.
 
 ### New droplet (no SSH needed)
 
 1. Create an Ubuntu 24.04 droplet (2 GB RAM or more), or reuse one running another app.
-2. In **User data**, paste `infra/digitalocean/user-data.sh` with `APP_DOMAIN` and
-   `SUPABASE_ANON_KEY` filled in (Supabase → Project Settings → API → the
-   **anon public** key; never the `service_role` key).
+2. In **User data**, paste `infra/digitalocean/user-data.sh` with `APP_DOMAIN` filled in.
 3. Point the domain's **A record** at the droplet. HTTPS starts once DNS points there.
-4. In Supabase → **Authentication → URL configuration**, add `https://<your domain>`
-   to **Site URL** and **Redirect URLs**.
 
-Or, on an existing droplet:
-`sudo APP_DOMAIN=buckshavenfarm.com SUPABASE_ANON_KEY=eyJ... bash infra/digitalocean/setup.sh`
-
-The app listens on `127.0.0.1:3001`, so it can share a droplet with other apps
-(each adds its own site file in `/etc/caddy/sites/`).
+Or, on an existing droplet: `sudo APP_DOMAIN=buckshavenfarm.com bash infra/digitalocean/setup.sh`
 
 ### Useful commands
 
@@ -66,34 +65,30 @@ The app listens on `127.0.0.1:3001`, so it can share a droplet with other apps
 | Deploy now | `sudo /usr/local/sbin/buckshavenfarm-deploy --force` |
 | Deploy log | `journalctl -u buckshavenfarm-deploy -n 100` |
 | App log | `journalctl -u buckshavenfarm -n 100` |
-| Change settings | edit `/etc/buckshavenfarm/env`, then deploy with `--force` (the Supabase values are built into the app) |
-
-### Cloudflare (older option)
-
-The Cloudflare Workers build still works: `npm run cf:build`, `npm run cf:deploy`
-(see `wrangler.toml` and `open-next.config.ts`).
 
 ## Project layout
 
 ```
 app/
-  login/                   # public sign-in
+  login/  setup/           # sign-in and first-time password
   admin/                   # admin portal (sidebar nav)
-    page.tsx               # dashboard
     tasks/ schedule/ availability/ feeding-charts/
     announcements/ employees/ clock-log/ notes/
-  employee/                # employee portal (bottom-nav)
-    page.tsx               # home
+  employee/                # employee portal (bottom nav)
     tasks/ schedule/ feeding-charts/ availability/
     time-off/ clock/ announcements/ more/
-components/                # AdminSidebar, EmployeeBottomNav, etc.
-lib/supabase/              # browser/server/middleware clients
-supabase/schema.sql        # tables, RLS, trigger, seed
-middleware.ts              # auth refresh + route protection
+  barn-display/            # public barn screens
+  api/barn-display/        # their data
+components/                # AdminSidebar, EmployeeBottomNav, BarnDisplayClient, etc.
+db/schema.sql              # tables + the farm's accounts
+lib/auth.ts                # logins and sessions
+lib/db/                    # database pool, permission rules, query builder
+middleware.ts              # sends signed-out visitors to /login
+infra/digitalocean/        # server setup and automatic deploys
 ```
 
 ## Roles & access
-- **admin** — full access (sidebar nav on desktop, bottom nav on phone)
-- **employee** — own tasks/schedule, feed checklist, availability, time off, clock, announcements
+- **admin**: full access (sidebar nav on desktop, bottom nav on phone)
+- **employee**: own tasks/schedule, feed checklist, availability, time off, clock, announcements
 
-Toggle roles from `/admin/employees`.
+Change roles and passwords from `/admin/employees`.

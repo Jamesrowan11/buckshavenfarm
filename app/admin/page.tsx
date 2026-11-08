@@ -1,19 +1,19 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/db/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboard() {
-  const supabase = createClient();
+  const db = createClient();
   const today = new Date().toISOString().slice(0, 10);
 
   const [{ data: tasksToday }, { data: shiftsToday }, { data: ann }, { data: clockToday }, { data: pendingTOR }] =
     await Promise.all([
-      supabase.from("tasks").select("*").eq("done", false).order("due_date", { ascending: true }).limit(5),
-      supabase.from("shifts").select("*, profiles:employee_id(name)").eq("date", today),
-      supabase.from("announcements").select("*").order("created_at", { ascending: false }).limit(3),
-      supabase.from("clock_logs").select("*").gte("created_at", `${today}T00:00:00`).order("created_at", { ascending: false }),
-      supabase.from("time_off_requests").select("*, profiles:employee_id(name)").eq("status", "pending"),
+      db.from("tasks").select("*").eq("done", false).order("due_date", { ascending: true }).limit(5),
+      db.from("shifts").select("*, profiles:employee_id(name)").eq("date", today),
+      db.from("announcements").select("*").order("created_at", { ascending: false }).limit(3),
+      db.from("clock_logs").select("*").gte("created_at", `${today}T00:00:00`).order("created_at", { ascending: false }),
+      db.from("time_off_requests").select("*, profiles:employee_id(name)").eq("status", "pending"),
     ]);
 
   // Compute who is clocked in (last action per user)

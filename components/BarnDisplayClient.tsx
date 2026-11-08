@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 export type BarnFilter = "log-barn" | "arena-barn";
 
@@ -64,28 +63,18 @@ export default function BarnDisplayClient({
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchAll = useCallback(async () => {
-    const supabase = createClient();
-    const today = new Date().toISOString().slice(0, 10);
-
-    let horsesQuery = supabase.from("horses").select("*").eq("active", true).order("name");
-    if (barnFilter) horsesQuery = horsesQuery.eq("barn", barnFilter);
-
-    const [horseRes, chartRes, logRes, annRes] = await Promise.all([
-      horsesQuery,
-      supabase.from("feeding_charts").select("*, profiles:responsible_employee(name)"),
-      supabase.from("feeding_logs").select("horse_id, feeding_type, done, date").eq("date", today),
-      supabase
-        .from("announcements")
-        .select("id, title, body, created_at")
-        .order("created_at", { ascending: false })
-        .limit(3),
-    ]);
-
-    setHorses((horseRes.data as Horse[] | null) ?? []);
-    setCharts((chartRes.data as unknown as Chart[] | null) ?? []);
-    setLogs((logRes.data as Log[] | null) ?? []);
-    setAnnouncements((annRes.data as Announcement[] | null) ?? []);
-    setLastUpdated(new Date());
+    try {
+      const r = await fetch(`/api/barn-display${barnFilter ? `?barn=${barnFilter}` : ""}`, { cache: "no-store" });
+      if (!r.ok) return;
+      const j = await r.json();
+      setHorses((j.horses as Horse[]) ?? []);
+      setCharts((j.charts as Chart[]) ?? []);
+      setLogs((j.logs as Log[]) ?? []);
+      setAnnouncements((j.announcements as Announcement[]) ?? []);
+      setLastUpdated(new Date());
+    } catch {
+      // keep showing the last data; the next refresh will try again
+    }
   }, [barnFilter]);
 
   const fetchWeather = useCallback(async () => {
@@ -106,30 +95,10 @@ export default function BarnDisplayClient({
 
   useEffect(() => {
     void fetchAll();
-
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`barn-display-${barnFilter ?? "all"}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "feeding_logs" }, () =>
-        void fetchAll()
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "feeding_charts" }, () =>
-        void fetchAll()
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "horses" }, () =>
-        void fetchAll()
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, () =>
-        void fetchAll()
-      )
-      .subscribe();
-
-    const poll = setInterval(fetchAll, 60_000);
-    return () => {
-      void supabase.removeChannel(channel);
-      clearInterval(poll);
-    };
-  }, [fetchAll, barnFilter]);
+    // Refresh every 15 seconds so checkmarks and changes show up quickly.
+    const poll = setInterval(fetchAll, 15_000);
+    return () => clearInterval(poll);
+  }, [fetchAll]);
 
   useEffect(() => {
     void fetchWeather();

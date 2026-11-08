@@ -1,32 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-
-export const dynamic = "force-dynamic";
+import { useActionState } from "react";
+import Link from "next/link";
+import { loginAction } from "./actions";
 
 export default function LoginPage() {
-  const supabase = createClient();
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    router.push("/");
-    router.refresh();
-  }
+  const [state, formAction, pending] = useActionState(loginAction, null);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-farm-50 to-stone-50 p-4">
@@ -39,34 +18,23 @@ export default function LoginPage() {
           <p className="text-stone-600 text-sm mt-1">Operations portal</p>
         </div>
 
-        <form onSubmit={onSubmit} className="card space-y-4">
+        <form action={formAction} className="card space-y-4">
           <div>
             <label className="label">Email</label>
-            <input
-              type="email"
-              required
-              autoComplete="email"
-              className="input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+            <input type="email" name="email" required autoComplete="email" className="input" defaultValue={state?.email ?? ""} key={state?.email ?? ""} />
           </div>
           <div>
             <label className="label">Password</label>
-            <input
-              type="password"
-              required
-              autoComplete="current-password"
-              className="input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <input type="password" name="password" required autoComplete="current-password" className="input" />
           </div>
-          {error && <div className="text-sm text-red-600">{error}</div>}
-          <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? "Signing in..." : "Sign in"}
+          {state?.error && <div className="text-sm text-red-600">{state.error}</div>}
+          <button type="submit" disabled={pending} className="btn-primary w-full">
+            {pending ? "Signing in..." : "Sign in"}
           </button>
         </form>
+        <p className="text-center text-sm text-stone-600 mt-4">
+          First time here? <Link href="/setup" className="text-farm font-medium">Set your password</Link>
+        </p>
       </div>
     </div>
   );

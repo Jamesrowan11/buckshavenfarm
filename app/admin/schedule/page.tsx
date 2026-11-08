@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/db/server";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
@@ -21,8 +21,8 @@ function getWeek(offset = 0) {
 
 async function createShift(formData: FormData) {
   "use server";
-  const supabase = createClient();
-  await supabase.from("shifts").insert({
+  const db = createClient();
+  await db.from("shifts").insert({
     employee_id: formData.get("employee_id") as string,
     date: formData.get("date") as string,
     start_time: formData.get("start_time") as string,
@@ -34,25 +34,25 @@ async function createShift(formData: FormData) {
 
 async function deleteShift(id: string) {
   "use server";
-  const supabase = createClient();
-  await supabase.from("shifts").delete().eq("id", id);
+  const db = createClient();
+  await db.from("shifts").delete().eq("id", id);
   revalidatePath("/admin/schedule");
 }
 
 export default async function AdminSchedulePage() {
-  const supabase = createClient();
+  const db = createClient();
   const week = getWeek(0);
   const start = week[0].toISOString().slice(0, 10);
   const end = week[6].toISOString().slice(0, 10);
   const [{ data: shifts }, { data: employees }] = await Promise.all([
-    supabase
+    db
       .from("shifts")
       .select("*, profiles:employee_id(name)")
       .gte("date", start)
       .lte("date", end)
       .order("date")
       .order("start_time"),
-    supabase.from("profiles").select("id, name").eq("role", "employee").order("name"),
+    db.from("profiles").select("id, name").eq("role", "employee").order("name"),
   ]);
 
   const byDate = new Map<string, any[]>();

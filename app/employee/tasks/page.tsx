@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/db/server";
 import EmptyState from "@/components/EmptyState";
 import PriorityBadge from "@/components/PriorityBadge";
 
@@ -7,29 +7,29 @@ export const dynamic = "force-dynamic";
 
 async function toggleDone(id: string, done: boolean) {
   "use server";
-  const supabase = createClient();
-  await supabase.from("tasks").update({ done: !done }).eq("id", id);
+  const db = createClient();
+  await db.from("tasks").update({ done: !done }).eq("id", id);
   revalidatePath("/employee/tasks");
 }
 
 async function addComment(id: string, current: string | null, formData: FormData) {
   "use server";
-  const supabase = createClient();
+  const db = createClient();
   const comment = String(formData.get("comment") ?? "").trim();
   if (!comment) return;
   const stamp = new Date().toLocaleString();
   const next = `${current ?? ""}${current ? "\n" : ""}[${stamp}] ${comment}`;
-  await supabase.from("tasks").update({ notes: next }).eq("id", id);
+  await db.from("tasks").update({ notes: next }).eq("id", id);
   revalidatePath("/employee/tasks");
 }
 
 export default async function EmployeeTasksPage() {
-  const supabase = createClient();
+  const db = createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await db.auth.getUser();
 
-  const { data: tasks } = await supabase
+  const { data: tasks } = await db
     .from("tasks")
     .select("*")
     .or(`assigned_to.eq.${user!.id},assigned_to.is.null`)

@@ -1,28 +1,28 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/db/server";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
 async function reviewRequest(id: string, status: "approved" | "denied") {
   "use server";
-  const supabase = createClient();
+  const db = createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
-  await supabase.from("time_off_requests").update({ status, reviewed_by: user?.id ?? null }).eq("id", id);
+  } = await db.auth.getUser();
+  await db.from("time_off_requests").update({ status, reviewed_by: user?.id ?? null }).eq("id", id);
   revalidatePath("/admin/availability");
 }
 
 export default async function AdminAvailabilityPage() {
-  const supabase = createClient();
+  const db = createClient();
   const [{ data: requests }, { data: availability }] = await Promise.all([
-    supabase
+    db
       .from("time_off_requests")
       .select("*, profiles:employee_id(name)")
       .order("status")
       .order("start_date"),
-    supabase
+    db
       .from("availability")
       .select("*, profiles:employee_id(name)")
       .order("week_start", { ascending: false })
