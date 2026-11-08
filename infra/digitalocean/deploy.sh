@@ -19,16 +19,21 @@ as_app() { runuser -u $APP -- env HOME=$DATA_DIR "$@"; }
 log() { echo "$(date -u +%FT%TZ) deploy: $*"; }
 
 cd $APP_DIR || exit 1
-# The Supabase key is built into the app, so there's nothing useful to build without it.
-grep -q '^NEXT_PUBLIC_SUPABASE_ANON_KEY=.\+' /etc/$APP/env || { log "NEXT_PUBLIC_SUPABASE_ANON_KEY is empty in /etc/$APP/env; not building"; exit 1; }
 as_app git fetch -q origin "$BRANCH" || { log "git fetch failed"; exit 1; }
 target=$(as_app git rev-parse "origin/$BRANCH")
 current=$(cat $STATE 2>/dev/null || true)
 if [ "${1:-}" != "--force" ] && [ "$target" = "$current" ]; then exit 0; fi
 
+# A value from site.conf in the repo, used when the server's env file leaves it empty.
+conf() { grep -E "^$1=" infra/digitalocean/site.conf 2>/dev/null | tail -1 | cut -d= -f2-; }
+
 build() {
   as_app git reset -q --hard "$1" &&
   set -a && . /etc/$APP/env && set +a &&
+  export NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL:-$(conf NEXT_PUBLIC_SUPABASE_URL)}" &&
+  export NEXT_PUBLIC_SUPABASE_ANON_KEY="${NEXT_PUBLIC_SUPABASE_ANON_KEY:-$(conf NEXT_PUBLIC_SUPABASE_ANON_KEY)}" &&
+  # The Supabase key is built into the app, so there's nothing useful to build without it.
+  { [ -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] || { log "no Supabase anon key yet (site.conf or /etc/$APP/env); not building"; false; }; } &&
   as_app npm ci --no-audit --no-fund &&
   as_app npm run build
 }
