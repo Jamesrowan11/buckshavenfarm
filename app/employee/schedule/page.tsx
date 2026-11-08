@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/db/server";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
@@ -19,15 +19,15 @@ function getWeek() {
 }
 
 export default async function EmployeeSchedulePage() {
-  const supabase = createClient();
+  const db = createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await db.auth.getUser();
   const week = getWeek();
   const start = week[0].toISOString().slice(0, 10);
   const end = week[6].toISOString().slice(0, 10);
 
-  const { data: shifts } = await supabase
+  const { data: shifts } = await db
     .from("shifts")
     .select("*")
     .eq("employee_id", user!.id)

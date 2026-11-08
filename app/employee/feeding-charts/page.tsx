@@ -1,18 +1,18 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/db/server";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
 async function markFeeding(horseId: string, chartId: string | null, type: "AM" | "PM", currentDone: boolean) {
   "use server";
-  const supabase = createClient();
+  const db = createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await db.auth.getUser();
   const today = new Date().toISOString().slice(0, 10);
 
-  const { data: existing } = await supabase
+  const { data: existing } = await db
     .from("feeding_logs")
     .select("id")
     .eq("horse_id", horseId)
@@ -21,9 +21,9 @@ async function markFeeding(horseId: string, chartId: string | null, type: "AM" |
     .maybeSingle();
 
   if (existing) {
-    await supabase.from("feeding_logs").update({ done: !currentDone, employee_id: user?.id ?? null }).eq("id", existing.id);
+    await db.from("feeding_logs").update({ done: !currentDone, employee_id: user?.id ?? null }).eq("id", existing.id);
   } else {
-    await supabase.from("feeding_logs").insert({
+    await db.from("feeding_logs").insert({
       horse_id: horseId,
       chart_id: chartId,
       feeding_type: type,
@@ -36,13 +36,13 @@ async function markFeeding(horseId: string, chartId: string | null, type: "AM" |
 }
 
 export default async function EmployeeFeedingPage() {
-  const supabase = createClient();
+  const db = createClient();
   const today = new Date().toISOString().slice(0, 10);
 
   const [{ data: horses }, { data: charts }, { data: logs }] = await Promise.all([
-    supabase.from("horses").select("*").eq("active", true).order("name"),
-    supabase.from("feeding_charts").select("*, profiles:responsible_employee(name)"),
-    supabase.from("feeding_logs").select("*").eq("date", today),
+    db.from("horses").select("*").eq("active", true).order("name"),
+    db.from("feeding_charts").select("*, profiles:responsible_employee(name)"),
+    db.from("feeding_logs").select("*").eq("date", today),
   ]);
 
   const chartByHorse = new Map<string, any>();

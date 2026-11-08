@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/db/server";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
@@ -16,10 +16,10 @@ function nextMonday() {
 
 async function submitAvailability(formData: FormData) {
   "use server";
-  const supabase = createClient();
+  const db = createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await db.auth.getUser();
   const week_start = String(formData.get("week_start"));
   const available_days: Record<string, { start?: string; end?: string }> = {};
   for (const day of DAYS) {
@@ -28,7 +28,7 @@ async function submitAvailability(formData: FormData) {
     if (start || end) available_days[day] = { start: start || undefined, end: end || undefined };
   }
   const notes = String(formData.get("notes") ?? "") || null;
-  await supabase.from("availability").insert({
+  await db.from("availability").insert({
     employee_id: user!.id,
     week_start,
     available_days,
@@ -38,11 +38,11 @@ async function submitAvailability(formData: FormData) {
 }
 
 export default async function EmployeeAvailabilityPage() {
-  const supabase = createClient();
+  const db = createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
-  const { data: history } = await supabase
+  } = await db.auth.getUser();
+  const { data: history } = await db
     .from("availability")
     .select("*")
     .eq("employee_id", user!.id)

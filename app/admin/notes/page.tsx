@@ -1,18 +1,18 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/db/server";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
 async function createNote(formData: FormData) {
   "use server";
-  const supabase = createClient();
+  const db = createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await db.auth.getUser();
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
-  await supabase.from("admin_notes").insert({
+  await db.from("admin_notes").insert({
     title,
     body: (formData.get("body") as string) || null,
     created_by: user?.id ?? null,
@@ -22,14 +22,14 @@ async function createNote(formData: FormData) {
 
 async function deleteNote(id: string) {
   "use server";
-  const supabase = createClient();
-  await supabase.from("admin_notes").delete().eq("id", id);
+  const db = createClient();
+  await db.from("admin_notes").delete().eq("id", id);
   revalidatePath("/admin/notes");
 }
 
 export default async function AdminNotesPage() {
-  const supabase = createClient();
-  const { data } = await supabase
+  const db = createClient();
+  const { data } = await db
     .from("admin_notes")
     .select("*, profiles:created_by(name)")
     .order("created_at", { ascending: false });

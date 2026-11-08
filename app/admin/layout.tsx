@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSessionAndProfile } from "@/lib/supabase/server";
+import { getSessionAndProfile } from "@/lib/db/server";
 import AdminSidebar from "@/components/AdminSidebar";
 
 export const dynamic = "force-dynamic";

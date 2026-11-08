@@ -1,14 +1,14 @@
 import { revalidatePath } from "next/cache";
-import { createClient, getSessionAndProfile } from "@/lib/supabase/server";
+import { createClient, getSessionAndProfile } from "@/lib/db/server";
 
 export const dynamic = "force-dynamic";
 
 async function clockAction(action: "in" | "out") {
   "use server";
-  const supabase = createClient();
+  const db = createClient();
   const { user, profile } = await getSessionAndProfile();
   if (!user) return;
-  await supabase.from("clock_logs").insert({
+  await db.from("clock_logs").insert({
     user_id: user.id,
     user_name: profile?.name ?? user.email ?? "",
     action,
@@ -17,10 +17,10 @@ async function clockAction(action: "in" | "out") {
 }
 
 export default async function EmployeeClockPage() {
-  const supabase = createClient();
+  const db = createClient();
   const { user, profile } = await getSessionAndProfile();
 
-  const { data: history } = await supabase
+  const { data: history } = await db
     .from("clock_logs")
     .select("*")
     .eq("user_id", user!.id)

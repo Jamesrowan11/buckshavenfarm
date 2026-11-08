@@ -1,11 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/db/server";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
 export default async function EmployeeAnnouncementsPage() {
-  const supabase = createClient();
-  const { data } = await supabase
+  const db = createClient();
+  const { data } = await db
     .from("announcements")
     .select("*, profiles:created_by(name)")
     .order("created_at", { ascending: false });

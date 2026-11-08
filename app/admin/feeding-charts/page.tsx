@@ -1,15 +1,15 @@
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/db/server";
 import EmptyState from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
 async function createHorse(formData: FormData) {
   "use server";
-  const supabase = createClient();
+  const db = createClient();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
-  await supabase.from("horses").insert({
+  await db.from("horses").insert({
     name,
     notes: (formData.get("notes") as string) || null,
   });
@@ -18,14 +18,14 @@ async function createHorse(formData: FormData) {
 
 async function deleteHorse(id: string) {
   "use server";
-  const supabase = createClient();
-  await supabase.from("horses").delete().eq("id", id);
+  const db = createClient();
+  await db.from("horses").delete().eq("id", id);
   revalidatePath("/admin/feeding-charts");
 }
 
 async function upsertChart(horseId: string, formData: FormData) {
   "use server";
-  const supabase = createClient();
+  const db = createClient();
   const existingId = (formData.get("id") as string) || null;
   const rawBarn = (formData.get("barn") as string) || "";
   const barn = rawBarn === "log-barn" || rawBarn === "arena-barn" ? rawBarn : null;
@@ -41,22 +41,22 @@ async function upsertChart(horseId: string, formData: FormData) {
   };
 
   if (existingId) {
-    await supabase.from("feeding_charts").update(payload).eq("id", existingId);
+    await db.from("feeding_charts").update(payload).eq("id", existingId);
   } else {
-    await supabase.from("feeding_charts").insert(payload);
+    await db.from("feeding_charts").insert(payload);
   }
   // Keep horses.barn in sync so the public /barn-display/<barn> page can
   // filter on horse.barn directly without a chart join.
-  await supabase.from("horses").update({ barn }).eq("id", horseId);
+  await db.from("horses").update({ barn }).eq("id", horseId);
   revalidatePath("/admin/feeding-charts");
 }
 
 export default async function AdminFeedingChartsPage() {
-  const supabase = createClient();
+  const db = createClient();
   const [{ data: horses }, { data: charts }, { data: employees }] = await Promise.all([
-    supabase.from("horses").select("*").order("name"),
-    supabase.from("feeding_charts").select("*"),
-    supabase.from("profiles").select("id, name").order("name"),
+    db.from("horses").select("*").order("name"),
+    db.from("feeding_charts").select("*"),
+    db.from("profiles").select("id, name").order("name"),
   ]);
 
   const chartByHorse = new Map<string, any>();

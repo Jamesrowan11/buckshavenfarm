@@ -1,23 +1,23 @@
 import Link from "next/link";
-import { createClient, getSessionAndProfile } from "@/lib/supabase/server";
+import { createClient, getSessionAndProfile } from "@/lib/db/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function EmployeeHome() {
-  const supabase = createClient();
+  const db = createClient();
   const { user, profile } = await getSessionAndProfile();
   const today = new Date().toISOString().slice(0, 10);
 
   const [{ data: myTasks }, { data: shiftToday }, { data: ann }] = await Promise.all([
-    supabase
+    db
       .from("tasks")
       .select("*")
       .eq("assigned_to", user!.id)
       .eq("done", false)
       .order("due_date", { ascending: true })
       .limit(5),
-    supabase.from("shifts").select("*").eq("employee_id", user!.id).eq("date", today),
-    supabase.from("announcements").select("*").order("created_at", { ascending: false }).limit(3),
+    db.from("shifts").select("*").eq("employee_id", user!.id).eq("date", today),
+    db.from("announcements").select("*").order("created_at", { ascending: false }).limit(3),
   ]);
 
   return (
