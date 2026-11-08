@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { publicUrl } from "@/lib/publicUrl";
 
 // Send anyone who isn't signed in to /login, except for public pages
 // (login, first-time setup, and the barn display screens).
@@ -17,10 +18,7 @@ export async function middleware(request: NextRequest) {
       // expired or tampered: fall through to the login page
     }
   }
-  const url = request.nextUrl.clone();
-  url.pathname = "/login";
-  url.search = "";
-  return NextResponse.redirect(url);
+  return NextResponse.redirect(publicUrl(request.headers, "/login", request.url));
 }
 
 export const config = {
