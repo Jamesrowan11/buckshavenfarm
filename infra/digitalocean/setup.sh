@@ -2,7 +2,8 @@
 # ============================================================================
 # Bucks Haven Farm on DigitalOcean: set up (or update) an Ubuntu 24.04 droplet.
 # Installs Node.js 22, MariaDB and Caddy (automatic HTTPS), keeps settings in
-# /etc/buckshavenfarm/env (outside the repository), builds and starts the app,
+# /etc/buckshavenfarm/env (outside the repository), builds and starts the
+# website (/) and portal (/portal),
 # and turns on automatic deploys from GitHub. The deploy creates the database.
 # Safe to run again. Other apps can share the droplet: each one adds its own
 # file in /etc/caddy/sites/.
@@ -79,16 +80,20 @@ chown -R $APP:$APP $APP_DIR
 git config --system --add safe.directory $APP_DIR 2>/dev/null || true
 
 say "Service"
+# A starting unit; every deploy rewrites it for the code it built (website + portal).
 cat > /etc/systemd/system/$APP.service <<UNIT
 [Unit]
-Description=Bucks Haven Farm (Next.js)
-After=network.target
+Description=Bucks Haven Farm (website + portal)
+After=network.target mariadb.service
 
 [Service]
 User=$APP
-WorkingDirectory=$APP_DIR
+WorkingDirectory=$APP_DIR/portal
 EnvironmentFile=$ENV_FILE
-ExecStart=$APP_DIR/node_modules/.bin/next start -p $PORT -H 127.0.0.1
+EnvironmentFile=-/etc/$APP/site.env
+EnvironmentFile=-/etc/$APP/portal.env
+Environment=NODE_ENV=production
+ExecStart=$(command -v node) server.js
 Restart=always
 RestartSec=3
 NoNewPrivileges=true
@@ -99,6 +104,7 @@ ReadWritePaths=$DATA_DIR $APP_DIR
 WantedBy=multi-user.target
 UNIT
 install -m 755 $APP_DIR/infra/digitalocean/deploy.sh /usr/local/sbin/$APP-deploy
+install -m 755 $APP_DIR/infra/digitalocean/set-secret.sh /usr/local/sbin/$APP-secret
 cat > /etc/systemd/system/$APP-deploy.service <<UNIT
 [Unit]
 Description=Deploy Bucks Haven Farm from GitHub when $BRANCH changes
@@ -129,7 +135,7 @@ say "Web address $APP_DOMAIN (HTTPS is automatic)"
   echo "$APP_DOMAIN {"
   echo "	encode gzip"
   echo "	request_body {"
-  echo "		max_size 12MB"
+  echo "		max_size 30MB"
   echo "	}"
   echo "	reverse_proxy 127.0.0.1:$PORT"
   echo "}"
@@ -145,4 +151,5 @@ sleep 3
 code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT/ || true)
 echo "App answers locally with HTTP $code."
 echo "Done. Point $APP_DOMAIN's A record at this droplet's IP. Updates deploy automatically from $BRANCH."
-echo "First sign-in: open https://$APP_DOMAIN/setup with the setup code."
+echo "Website: https://$APP_DOMAIN   Portal: https://$APP_DOMAIN/portal"
+echo "First sign-in: open https://$APP_DOMAIN/portal/setup with the setup code."
