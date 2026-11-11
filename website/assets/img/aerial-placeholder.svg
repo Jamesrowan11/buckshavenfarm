@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0c1d14"/>
+      <stop offset="1" stop-color="#122a1c"/>
+    </linearGradient>
+    <linearGradient id="field1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b3a26"/>
+      <stop offset="1" stop-color="#16311f"/>
+    </linearGradient>
+    <linearGradient id="field2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#20422b"/>
+      <stop offset="1" stop-color="#1a3823"/>
+    </linearGradient>
+    <linearGradient id="field3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#254a30"/>
+      <stop offset="1" stop-color="#1d3d27"/>
+    </linearGradient>
+    <linearGradient id="roof1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5c4633"/>
+      <stop offset="1" stop-color="#43331f"/>
+    </linearGradient>
+    <linearGradient id="roof2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4c5a5e"/>
+      <stop offset="1" stop-color="#37454a"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx=".5" cy=".45" r=".85">
+      <stop offset=".55" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity=".55"/>
+    </radialGradient>
+    <pattern id="rows" width="26" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(24)">
+      <rect width="26" height="26" fill="none"/>
+      <line x1="0" y1="0" x2="0" y2="26" stroke="#ffffff" stroke-opacity=".025" stroke-width="9"/>
+    </pattern>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#sky)"/>
+
+  <!-- pasture patchwork -->
+  <path d="M0 0 L620 0 L560 380 L0 460 Z" fill="url(#field1)"/>
+  <path d="M620 0 L1600 0 L1600 300 L980 340 L560 380 Z" fill="url(#field2)"/>
+  <path d="M0 460 L560 380 L980 340 L1040 640 L520 720 L0 780 Z" fill="url(#field3)"/>
+  <path d="M980 340 L1600 300 L1600 900 L1120 900 L1040 640 Z" fill="url(#field1)"/>
+  <path d="M0 780 L520 720 L1040 640 L1120 900 L0 900 Z" fill="url(#field2)"/>
+  <rect width="1600" height="900" fill="url(#rows)"/>
+
+  <!-- fence lines between paddocks -->
+  <g stroke="#cbb98a" stroke-opacity=".22" stroke-width="3" fill="none">
+    <path d="M620 0 L560 380 L980 340"/>
+    <path d="M0 460 L560 380"/>
+    <path d="M980 340 L1040 640 L520 720 L0 780"/>
+    <path d="M1040 640 L1120 900"/>
+    <path d="M980 340 L1600 300"/>
+  </g>
+
+  <!-- tree line, top and right -->
+  <g fill="#0a1810">
+    <path d="M0 0 h1600 v70 q-90 30 -180 12 q-120 34 -240 6 q-110 30 -220 8 q-130 30 -250 6 q-120 28 -230 8 q-140 30 -260 6 q-110 26 -220 10 L0 96 Z"/>
+    <path d="M1600 0 v900 h-70 q-28 -110 -8 -220 q-30 -120 -6 -240 q-26 -110 -10 -220 q-24 -120 -4 -220 Z"/>
+  </g>
+  <g fill="#122b1b" opacity=".9">
+    <circle cx="120" cy="60" r="34"/><circle cx="230" cy="48" r="26"/><circle cx="360" cy="66" r="30"/>
+    <circle cx="520" cy="50" r="24"/><circle cx="700" cy="62" r="32"/><circle cx="880" cy="46" r="26"/>
+    <circle cx="1060" cy="60" r="30"/><circle cx="1250" cy="50" r="26"/><circle cx="1430" cy="64" r="32"/>
+    <circle cx="1550" cy="200" r="30"/><circle cx="1540" cy="360" r="26"/><circle cx="1555" cy="540" r="32"/>
+    <circle cx="1540" cy="720" r="28"/>
+  </g>
+
+  <!-- driveway from bottom left up to the barns -->
+  <path d="M60 900 C 240 760 380 700 560 620 C 660 576 720 560 800 548"
+        fill="none" stroke="#6b6353" stroke-width="30" stroke-opacity=".8" stroke-linecap="round"/>
+  <path d="M60 900 C 240 760 380 700 560 620 C 660 576 720 560 800 548"
+        fill="none" stroke="#8a8069" stroke-width="4" stroke-opacity=".35" stroke-dasharray="2 26"/>
+
+  <!-- arena barn (large) -->
+  <g transform="translate(790,430) rotate(-8)">
+    <rect x="0" y="0" width="300" height="150" rx="6" fill="url(#roof2)"/>
+    <rect x="0" y="70" width="300" height="8" fill="#ffffff" opacity=".10"/>
+    <g stroke="#26333a" stroke-width="2" opacity=".7">
+      <line x1="30" y1="0" x2="30" y2="150"/><line x1="70" y1="0" x2="70" y2="150"/>
+      <line x1="110" y1="0" x2="110" y2="150"/><line x1="150" y1="0" x2="150" y2="150"/>
+      <line x1="190" y1="0" x2="190" y2="150"/><line x1="230" y1="0" x2="230" y2="150"/>
+      <line x1="270" y1="0" x2="270" y2="150"/>
+    </g>
+  </g>
+
+  <!-- log barn (smaller, warm roof) -->
+  <g transform="translate(600,560) rotate(-8)">
+    <rect x="0" y="0" width="170" height="92" rx="5" fill="url(#roof1)"/>
+    <rect x="0" y="43" width="170" height="6" fill="#ffffff" opacity=".12"/>
+    <g stroke="#2e2313" stroke-width="2" opacity=".7">
+      <line x1="34" y1="0" x2="34" y2="92"/><line x1="68" y1="0" x2="68" y2="92"/>
+      <line x1="102" y1="0" x2="102" y2="92"/><line x1="136" y1="0" x2="136" y2="92"/>
+    </g>
+  </g>
+
+  <!-- outdoor ring -->
+  <g transform="translate(1150,560) rotate(-8)">
+    <ellipse cx="0" cy="0" rx="150" ry="88" fill="#6e5b41" opacity=".85"/>
+    <ellipse cx="0" cy="0" rx="150" ry="88" fill="none" stroke="#cbb98a" stroke-opacity=".4" stroke-width="3"/>
+    <ellipse cx="0" cy="0" rx="118" ry="62" fill="#7d6a4d" opacity=".5"/>
+  </g>
+
+  <!-- run-in sheds -->
+  <rect x="300" y="250" width="70" height="36" rx="4" fill="url(#roof1)" transform="rotate(14 335 268)"/>
+  <rect x="1250" y="180" width="76" height="38" rx="4" fill="url(#roof2)" transform="rotate(-6 1288 199)"/>
+
+  <!-- winding trail to Schooley Mill, top right -->
+  <path d="M1330 520 C 1380 430 1360 340 1430 260 C 1480 200 1500 150 1510 90"
+        fill="none" stroke="#a8916a" stroke-width="8" stroke-opacity=".35" stroke-linecap="round" stroke-dasharray="14 12"/>
+
+  <!-- scattered trees in pastures -->
+  <g fill="#0e2015" opacity=".9">
+    <circle cx="240" cy="330" r="20"/><circle cx="262" cy="344" r="14"/>
+    <circle cx="450" cy="540" r="18"/><circle cx="1180" cy="420" r="16"/>
+    <circle cx="150" cy="640" r="22"/><circle cx="170" cy="656" r="14"/>
+    <circle cx="900" cy="720" r="18"/><circle cx="1350" cy="780" r="20"/>
+  </g>
+
+  <!-- horses (tiny, from above) -->
+  <g fill="#c9b7a0" opacity=".85">
+    <ellipse cx="380" cy="200" rx="9" ry="3.6" transform="rotate(24 380 200)"/>
+    <ellipse cx="420" cy="230" rx="9" ry="3.6" transform="rotate(-12 420 230)"/>
+    <ellipse cx="1120" cy="220" rx="9" ry="3.6" transform="rotate(40 1120 220)"/>
+    <ellipse cx="260" cy="560" rx="9" ry="3.6" transform="rotate(8 260 560)"/>
+    <ellipse cx="300" cy="590" rx="9" ry="3.6" transform="rotate(-30 300 590)"/>
+  </g>
+
+  <rect width="1600" height="900" fill="url(#vignette)"/>
+</svg>
