@@ -34,7 +34,7 @@ load_env() {
 }
 env_value() { grep -E "^$1=" "$2" 2>/dev/null | tail -1 | cut -d= -f2-; }
 
-as_app() { runuser -u $APP -- env HOME=$DATA_DIR "$@"; }
+as_app() { mkdir -p $DATA_DIR/tmp && chown $APP:$APP $DATA_DIR/tmp; runuser -u $APP -- env HOME=$DATA_DIR TMPDIR=$DATA_DIR/tmp "$@"; }
 log() { echo "$(date -u +%FT%TZ) deploy: $*"; }
 
 cd $APP_DIR || exit 1
@@ -185,7 +185,8 @@ LAYOUT=old
 build() {
   as_app git reset -q --hard "$1" || return 1
   ensure_common || return 1
-  if [ -d "$APP_DIR/portal" ]; then
+  # Decide by a tracked file: an old commit can still have an untracked portal/node_modules.
+  if [ -f "$APP_DIR/portal/package.json" ]; then
     LAYOUT=portal
     ensure_portal || return 1
     load_env /etc/$APP/env && load_env /etc/$APP/site.env && load_env /etc/$APP/portal.env
